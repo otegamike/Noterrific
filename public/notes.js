@@ -74,6 +74,29 @@ const errObbj = (errText) => {
 
 }
 
+const preventClick = (toggle, elementId, btn) => {
+    const id = elementId ;
+    const element = document.getElementById(id);
+    
+
+    if (toggle==="on" && btn !== null) {
+            const parentId = element.parentElement.id;
+            console.log(parentId);
+
+            element.remove();
+            const newBtn = btn;
+            const inputareaEl = document.getElementById(parentId);
+            inputareaEl.insertAdjacentHTML("beforeend", newBtn);
+            console.log(`click re-enabled for element id: ${id}`);
+
+    } else if (toggle==="off") {
+        document.getElementById(id).onclick = "" ;
+        console.log(`click disabled for element id: ${id}`);
+    } else {
+        return ;
+    }
+}
+
 
 const liElement = (liId, liTitle, liContent , liCreateTime ) => { 
     const titlespan = `<span id="tit${liId}" class="bold">${liTitle} </span>`;
@@ -81,7 +104,7 @@ const liElement = (liId, liTitle, liContent , liCreateTime ) => {
     const editSpan = `${editBtn(liId)}`;
     const datespan = `<span class="date">${loaddate(liCreateTime)}</span>`
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span class="float">${editSpan}${delSpan}</span></div>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${editSpan}${delSpan}</span></div>`;
     const contentSpan= `<span class="content" id="cont${liId}" >${liContent.replaceAll("\n","<br/>")}</span>`;
 
     const list = `<li id="nt${liId}">${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</li>`;
@@ -174,6 +197,7 @@ const saveNote = async () => {
 
     const titleEl = document.getElementById("title");
     const contentEl = document.getElementById("content");
+    const saveBtn = `<span class="save" onclick="saveNote()" id="save"> Done</span>`
     
     const title = titleEl.value;
     const content = contentEl.value;
@@ -181,7 +205,7 @@ const saveNote = async () => {
     
     const saveEl = document.getElementById("save");
     saveEl.innerHTML = spin;
-    saveEl.onclick = '';
+    preventClick("off", "save", null);
 
     if (content==="") {
         const c = document.getElementById("content");
@@ -191,7 +215,12 @@ const saveNote = async () => {
         errObbj(errTxt);
         setTimeout(()=> {
             c.placeholder = "Take a note..."
-            saveEl.innerHTML = "Done"; } , 2000) ;
+
+            //re-enable click
+            const newSaveBtn = `<span class="save" onclick="saveNote()" id="save"> Done</span>`
+            preventClick("on", "save", newSaveBtn); 
+        
+        } , 2000) ;
         return
     }
 
@@ -206,7 +235,6 @@ const saveNote = async () => {
 
             const result = await res.json();
             console.log("Success!", result);
-            console.log(res) ;
             titleEl.value = "" ;
             contentEl.value = "";
             saveEl.innerHTML = done;
@@ -217,13 +245,12 @@ const saveNote = async () => {
             addToTop(nId, title, content, createTime) ;
 
             setTimeout(() => {
-                saveEl.innerHTML = "Done";}, 2000);
+               preventClick("on", "save", saveBtn);
+            }, 2000);
+
         } else {
-            errTxt="could not save note. try again later..."
-            saveEl.remove();
-            const newSaveBtn = `<span class="save" onclick="saveNote()" id="save"> Done</span>`
-            const inputareaEl = document.getElementById('inputarea');
-            inputareaEl.insertAdjacentHTML("afterbegin", newSaveBtn);
+            const errTxt="could not save note. try again later..."
+            preventClick("on", "save", saveBtn);
 
             errObbj(errTxt);
 
@@ -241,8 +268,10 @@ const serverDel = async (i) => {
 
      const id = i;
      const spinner = `<svg class="spinner" width="25px" height="25px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg>`;
-     const delEl = document.getElementById(`del${i}`);
+     const delId = `del${i}`;
+     const delEl = document.getElementById(delId);
      delEl.innerHTML = spinner ;
+     preventClick("off", delId , null);
 
   try {  
         const res = await fetch(("/.netlify/functions/app/delNote") , {
@@ -252,6 +281,9 @@ const serverDel = async (i) => {
         })
 
         if (!res.ok) {
+            const errTxt = "Could not delete note. Please try again later";
+            errObbj(errTxt);
+            preventClick("on", delId, delBtn(i) );
             throw new Error( "Network error");
         } else {
 
@@ -282,7 +314,7 @@ const editMode = (i) => {
 
     const titlebox = `<input type="text" style="background-color:#edf9cc" class="bold" id="titE${i}" value="${titleTarget.innerHTML}" />` ;
     const contentbox = `<textarea id="contE${i}" style="background-color:#edf9cc" class="content">${contentTarget.innerHTML.replaceAll("<br>", "\n")} </textarea> ` ;
-    const donebox = `<span class="float"><span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span></span>`;
+    const donebox = `<span id="editMode${i}" class="float"><span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span></span>`;
     
     const editbox = `<div class='titleCon'>${titlebox}${donebox}</div>${contentbox}`;
 
@@ -310,8 +342,11 @@ const serverEdit = async (i) => {
 
 
      const spinner = `<svg class="spinner" width="25px" height="25px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg>`;
-     const dnEl = document.getElementById(`dn${i}`);
+     const donebox = `<span class="float"><span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span></span>`;
+     const dnId = `dn${i}`;
+     const dnEl = document.getElementById(dnId);
      dnEl.innerHTML = spinner ;
+     preventClick("off" , dnId , null);
 
   try {  
         const res = await fetch(("/.netlify/functions/app/editNote") , {
@@ -321,6 +356,10 @@ const serverEdit = async (i) => {
         })
 
         if (!res.ok) {
+            const errTxt = "Can't connect to server. Please try again."
+            errObbj(errTxt);
+            const dnBigButton = `<span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span>`;
+            preventClick("on", dnId, dnBigButton ) ;
             throw new Error( "Network error");
         } else {
 
