@@ -1,14 +1,19 @@
 {
 	"geolocation": {
 		"data": {
+			"city": "Benin City",
 			"country": {
 				"code": "NG",
 				"name": "Nigeria"
 			},
+			"subdivision": {
+				"code": "ED",
+				"name": "Edo State"
+			},
 			"timezone": "Africa/Lagos",
-			"latitude": 10,
-			"longitude": 8
+			"latitude": 6.3332,
+			"longitude": 5.6238
 		},
-		"timestamp": 1759388993241
+		"timestamp": 1759492156926
 	}
 }

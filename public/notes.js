@@ -223,13 +223,13 @@ async function getNotes() {
         const res = await fetch(("/.netlify/functions/app/getNotes") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
-            body: JSON.stringify({ACCESSTOKEN}) 
+            body: JSON.stringify(ACCESSTOKEN) 
         })
 
         const data = await res.json();
         if (res.status===404 && data.notes==="none" ) {
             noteEl.innerHTML = "you dont have any notes"
-        } else if (res.status===403 && data.status==="failed" ) {
+        } else if (res.status===403 && !data.validated ) {
             reLogin()
             return;
         } else {
@@ -246,8 +246,9 @@ async function getNotes() {
 
         }
             
-    } catch (error) {
-         console.log(error);
+    } catch (err) {
+         console.error(err.message);
+         errObbj("Could not connect to server retry");
     }
 
 }
@@ -321,8 +322,6 @@ const saveNote = async () => {
             if (result.accessToken) {
                 ACCESSTOKEN = result.accessToken;
             }
-
-            console.log("Success!", ACCESSTOKEN);
             titleEl.value = "" ;
             contentEl.value = "";
             saveEl.innerHTML = done;
@@ -373,6 +372,7 @@ const serverDel = async (i) => {
             errObbj(errTxt);
             preventClick("on", delId, delBtn(i) );
             throw new Error( "Network error");
+            
         } else if (res.status===403) {
             const result = await res.json();
             console.log(result.message);
@@ -380,10 +380,10 @@ const serverDel = async (i) => {
             errObbj(errTxt);
             reLogin();
             return;
+
         } else {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;
-            console.log("Success!", result);
             delNote(i)
         }
         
@@ -459,6 +459,7 @@ const serverEdit = async (i) => {
             const dnBigButton = `<span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span>`;
             preventClick("on", dnId, dnBigButton ) ;
             throw new Error( "Network error");
+
         } else if (res.status===403) {
             const result = await res.json();
             console.log(result.message);
@@ -466,6 +467,7 @@ const serverEdit = async (i) => {
             errObbj(errTxt);
             reLogin();
             return;
+
         } else {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;

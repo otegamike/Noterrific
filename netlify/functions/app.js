@@ -92,6 +92,61 @@ const verifyAccessToken = (token) => {
 
 }
 
+const verifyToken = (accesstoken, refreshtoken) => {
+
+    console.log("verifying access token");
+
+
+    try {
+        const decoded = jwt.verify(accesstoken, process.env.ACCESS_TOKEN_SECRET);
+        const userId = decoded.id;
+        const username = decoded.username;
+
+        return {
+            accessToken: accesstoken,
+            userId, 
+            username, 
+            message: "Access Token verified", 
+            validated: true}
+    } catch (err) {
+        console.error(err.message) ;
+        console.log("Couldn't verify accessToken");
+        console.log("creating new accesstoken");
+
+        if (!refreshtoken) {
+            return { message: "No refresh token, Log in again", validated: false };
+        }
+
+        try {
+            console.log("refresh token found checking if valid");
+
+            const decoded = jwt.verify(refreshtoken, process.env.REFRESH_TOKEN_SECRET);
+            const { id: userId, username } = decoded;
+
+            console.log("refresh token valid, creating new access token");
+
+            const accessToken = jwt.sign(
+            { id: userId, username },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: "15m" }
+            );
+
+            return {
+            userId,
+            username,
+            accessToken,
+            validated: true,
+            message: "New access token created"
+            };
+        } catch (err) {
+            console.error(err.message) ;
+            return { message: "Invalid or expired refresh token", validated: false };
+        }
+    }
+
+
+}
+
 
 async function connectToDatabase() {
     if (cachedClient && cachedDb ) {
@@ -149,8 +204,6 @@ router.post("/register", async (req , res) => {
             httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
         });
 
-        console.log(accessToken, refreshToken , updated);
-
         res.status(201).json( 
            {status: true, message :"user profile created", username, accessToken}
         );
@@ -186,10 +239,7 @@ router.post("/login" , async (req , res) => {
                 res.cookie("refreshToken", refreshToken, {
                     httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
                 });
-
-                console.log(accessToken, refreshToken , updated);
                 
-                console.log(confirm, "Correct password");
                 res.status(200).json({status: true, message :"Correct password", username, accessToken});
 
             } else {
@@ -238,31 +288,25 @@ router.post("/checkUsername" , async (req , res) => {
 
 router.post("/getNotes", async (req, res) => {
     let accessToken = req.body.ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+    
+
     let userId;
     let USER;
 
-    const checkToken = verifyAccessToken(accessToken);
-    if (checkToken.status==="success") {
-        userId = checkToken.userId;
-        USER = checkToken.username;
-        console.log(checkToken);
-    } else {
-        console.log(checkToken);
+    const validateUser = verifyToken(accessToken,refreshToken) ;
+    
+    if (validateUser.validated) {
+        accessToken = validateUser.accessToken;
+        userId = validateUser.userId;
+        USER = validateUser.username;
 
-        const refreshToken = req.cookies.refreshToken;
-        const newToken = newAccessToken(refreshToken) ;
-        if (newToken.status==="success") {
-            accessToken = newToken.accessToken ;
-            userId = newToken.userId;
-            USER = newToken.username;
-            console.log(newToken);
-        } else {
-            console.log(newToken);
-            res.status(403).json(newToken);
-            return;
-        }
-
+    } else if (!validateUser.validated) {
+        console.log(validateUser.message)
+        res.status(403).json(validateUser);
+        return;
     }
+  
 
     try {
         const { db } = await connectToDatabase();
@@ -271,8 +315,6 @@ router.post("/getNotes", async (req, res) => {
         .collection("NoteCollection")
         .find({ userId: userId }) 
         .toArray();
-
-        console.log(notes, userId);
 
         if (notes.length === 0) {
         return res.status(404).json({ accessToken, USER, validated: true, notes:"none", message: "No notes found" });
@@ -287,32 +329,23 @@ router.post("/getNotes", async (req, res) => {
 
 router.post("/delNote" , async (req , res) => {
     const id = req.body.id;
-
     let accessToken = req.body.ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+
     let userId;
     let USER;
 
-    const checkToken = verifyAccessToken(accessToken);
-    if (checkToken.status==="success") {
-        userId = checkToken.userId;
-        USER = checkToken.username;
-        console.log(checkToken);
-    } else {
-        console.log(checkToken);
+    const validateUser = verifyToken(accessToken,refreshToken) ;
+    if (validateUser.validated) {
+        accessToken = validateUser.accessToken;
+        userId = validateUser.userId;
+        USER = validateUser.username;
 
-        const refreshToken = req.cookies.refreshToken;
-        const newToken = newAccessToken(refreshToken) ;
-        if (newToken.status==="success") {
-            accessToken = newToken.accessToken ;
-            userId = newToken.userId;
-            USER = newToken.username;
-            console.log(newToken);
-        } else {
-            console.log(newToken);
-            res.status(403).json(newToken);
-            return;
-        }
-
+        console.log(validateUser.message);
+    } else if (!validateUser.validated) {
+        console.log(validateUser.message)
+        res.status(403).json(validateUser);
+        return;
     }
 
     try { 
@@ -342,30 +375,22 @@ router.post("/editNote" , async (req , res) => {
     const {nId, id, title, content, createTime} =  req.body;
 
     let accessToken = req.body.ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+
     let userId;
     let USER;
 
-    const checkToken = verifyAccessToken(accessToken);
-    if (checkToken.status==="success") {
-        userId = checkToken.userId;
-        USER = checkToken.username;
-        console.log(checkToken);
-    } else {
-        console.log(checkToken);
+    const validateUser = verifyToken(accessToken,refreshToken) ;
+    if (validateUser.validated) {
+        accessToken = validateUser.accessToken;
+        userId = validateUser.userId;
+        USER = validateUser.username;
 
-        const refreshToken = req.cookies.refreshToken;
-        const newToken = newAccessToken(refreshToken) ;
-        if (newToken.status==="success") {
-            accessToken = newToken.accessToken ;
-            userId = newToken.userId;
-            USER = newToken.username;
-            console.log(newToken);
-        } else {
-            console.log(newToken);
-            res.status(403).json(newToken);
-            return;
-        }
-
+        console.log(validateUser.message);
+    } else if (!validateUser.validated) {
+        console.log(validateUser.message)
+        res.status(403).json(validateUser);
+        return;
     }
 
     try {
@@ -378,7 +403,7 @@ router.post("/editNote" , async (req , res) => {
                 .updateOne({id : id } , {$set: { id: nId , title, content , createTime } });
             if (update) {
                 res.status(200).json(accessToken);
-                console.log(newNote) ;
+                console.log(`note ${id} updated`) ;
             } else {
                 res.status(404);
                 console.log('Note not found or cant be deleted')
@@ -424,11 +449,10 @@ router.post("/newNote" , async (req , res) => {
         const Collection = db.collection("NoteCollection");
 
         const lastNote = await Collection.findOne({} , {sort :{ id : -1}}) ;
-        console.log(lastNote);
         const id = lastNote.id + 1;
-        console.log(id) ;
         const newNote = {userId, id , title , content, createTime} ;
         const insertNote = await Collection.insertOne({userId, id , title , content , createTime});
+
         if (insertNote.acknowledged) {
             res.status(201).json(accessToken, id);
             console.log(newNote) ;
