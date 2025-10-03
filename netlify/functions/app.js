@@ -1,78 +1,120 @@
 const path = require("path"); 
 const express = require("express");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const serverless = require("serverless-http");
-const { MongoClient } =  require("mongodb");
+const cookieParser = require("cookie-parser");
+const { MongoClient, ObjectId } =  require("mongodb");
+const { fs } = require("fs");
 require("dotenv").config();
 
 const app = express();
 const router = express.Router();
 app.use(express.json());
+app.use(cookieParser());
+
+app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static(path.join(__dirname , "../../public")));
 
-console.log("test");
 
-//const client = new MongoClient(process.env.CONNECTIONSTRING) ;
 const MONGO_URI = process.env.CONNECTIONSTRING ;
-//let cachedClient = null ;
-//let cachedDb = null ;
-
-//const db = client.db("Note");
-//const Collection = db.collection('NoteCollection'); 
-
-/*const connectToDatabase = async () => {
-    if (cachedClient && cachedDb ) {
-        console.log("Already connected to database") ;
-        return {client: cachedClient , db: cachedDb}
-    }
-    if (!MONGO_URI) { 
-        throw new Error ("Missing CONNECTION env var") ;
-    }
-    const client  = new MongoClient(MONGO_URI) ;
-    const connect  = await client.connect(); 
-    console.log("Connected to mongoDb");
-
-
-}
-
-
-router.get("/getNotes" , async (req , res) => {
-    
-    console.log("This function works");
-    const connect  = await client.connect(); 
-     console.log("Connected to mongoDb");
-
-    if (connect) { 
-        console.log("connected");
-          const notes = await Collection.find().toArray();
-          res.json(notes);
-          console.log(notes);
-    }
-
-    else {res.json([])} 
-});
-
-*/
 
 
 let cachedClient = null ;
 let cachedDb = null ;
 
+function createTokens(user) {
+    const accessToken = jwt.sign(
+        {id: user.id, username: user.username},
+        process.env.ACCESS_TOKEN_SECRET,
+        {expiresIn: "15m"}
+    );
+
+    const refreshToken = jwt.sign(
+        {id: user.id , username: user.username },
+        process.env.REFRESH_TOKEN_SECRET,
+        {expiresIn: "14d"}
+    )
+
+    console.log("tokens created")
+    return {refreshToken, accessToken}
+
+}
+
+const newAccessToken = (refreshToken) => {
+    console.log("creating new accesstoken");
+
+    if (!refreshToken) {
+        return { message: "No refresh token, Log in again", status: "failed" };
+    }
+
+    try {
+        console.log("refresh token found checking if valid");
+
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const { id: userId, username } = decoded;
+
+        console.log("refresh token valid, creating new access token");
+
+        const accessToken = jwt.sign(
+        { id: userId, username },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "15m" }
+        );
+
+        return {
+        userId,
+        username,
+        accessToken,
+        status: "success",
+        message: "New access token created"
+        };
+    } catch (err) {
+        return { message: "Invalid or expired refresh token", status: "failed" };
+    }
+};
+
+const verifyAccessToken = (token) => {
+    console.log("verifying access token");
+
+    let userId ;
+    let username;
+    try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        userId = decoded.id;
+        username = decoded.username;
+    } catch (err) {
+        return {message: "Couldn't verify accessToken", status: "failed" }
+    }
+
+    return {userId, username, message: "Access Token verified", status: "success"}
+
+}
+
+
 async function connectToDatabase() {
     if (cachedClient && cachedDb ) {
         return { client : cachedClient , db : cachedDb };
+
     }
     if (!MONGO_URI) { 
         throw new Error ("Missing CONNECTION env var") ;
     }
     const client =  new MongoClient(MONGO_URI);
 
-    const connect = await client.connect(); 
-    if (connect) console.log("connected to Database");
-    const db = client.db("Note") ;
-    cachedClient = client ;
-    cachedDb = db ;
-    return { client: cachedClient , db: cachedDb} ;
+    try {
+        const connect = await client.connect(); 
+        if (connect) console.log("connected to Database");
+        const db = client.db("Note") ;
+        cachedClient = client ;
+        cachedDb = db ;
+        return { client: cachedClient , db: cachedDb} ;
+    } catch (err) {
+        console.error(`error: ${err.message} ; Could not connect to mongoDb `)
+        return;
+    }
+    
 }
 
 router.get(["/notebook", "/note"] , async(req , res) => {
@@ -80,31 +122,214 @@ router.get(["/notebook", "/note"] , async(req , res) => {
 
 }) 
 
-router.get("/getNotes" , async (req , res) => {
+router.post("/register", async (req , res) => {
+
+    const {username, email, password} = req.body;
+
     try {
-         const { db } = await connectToDatabase() ;
-         const notes  = await db.collection("NoteCollection").find().toArray();   
-         res.json(notes);
-         } catch (err) {
-            console.error(err);
-            res.status(500).json([]);
-         }
+        const salt = await bcrypt.genSalt();
+        const hashedpassword = await bcrypt.hash(password, salt);
+        
+        const newUser = {username, email, hashedpassword};
+
+        const {db} = await connectToDatabase();
+        const users = db.collection("Users");
+
+        const response = await users.insertOne({username, email, hashedpassword});
+
+        const userId = response.insertedId.toString();
+        const userObject = {id: userId, username: username } ;
+
+        const { accessToken , refreshToken } = createTokens(userObject);
+        const updated = await users.updateOne(
+            {username: username } , {$set: {refreshToken}} 
+        ) ;
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
+        });
+
+        console.log(accessToken, refreshToken , updated);
+
+        res.status(201).json( 
+           {status: true, message :"user profile created", username, accessToken}
+        );
+    } catch (err) {
+        console.error("Error in registration", err.message) ;
+        res.status(500).json({error : "Registration failed"})
+    }
+    
+
+})
+
+router.post("/login" , async (req , res) => {
+    const {username , password} = req.body ;
+
+    const {db} = await connectToDatabase();
+    const users = db.collection("Users") ;
+    const user = await users.findOne({username: username}) ;
+    
+    if (user===null) {
+        res.status(200).send(`${username} not found`)
+    } else {
+        try {
+            const confirm = await bcrypt.compare(password, user.hashedpassword);
+            if (confirm) {
+                const userId = user._id.toString();
+                const userObject = {id: userId, username} ;
+                
+                const { accessToken , refreshToken } = createTokens(userObject);
+                const updated = await users.updateOne(
+                    {username: username } , {$set: {refreshToken}} 
+                ) ;
+
+                res.cookie("refreshToken", refreshToken, {
+                    httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
+                });
+
+                console.log(accessToken, refreshToken , updated);
+                
+                console.log(confirm, "Correct password");
+                res.status(200).json({status: true, message :"Correct password", username, accessToken});
+
+            } else {
+                
+                console.log(confirm, "incorrect password");
+                res.status(200).json({status: false, message :"incorrect password"});
+
+            }
+        } catch (err) {
+            console.error("Bcrypt compare failed:", err.message);
+            res.status(500).json({error: "Something went wrong, please try again later."});
+        }
+        
+    }
+    
+
+})
+
+router.post("/checkUsername" , async (req , res) => {
+    console.log("trigered");
+    const username = req.body.uName;
+    const inputt = req.body.input;
+    console.log(inputt);
+    
+    try {
+        
+        const {db} = await connectToDatabase() ;
+        const user = db.collection("Users");
+        let confirm;
+        if (inputt === "username") {
+            confirm =await user.findOne({username: username}) ;
+        } else {
+            confirm =await user.findOne({email: username}) ;
+        }    
+        const response = (confirm===null)? "available" : "unavailable" ;
+        res.status(200).send(response);
+
+        console.log(confirm,username,response)
+
+    } catch (err) {
+           console.error("there was an error")
+    }
+    
+
+})
+
+router.post("/getNotes", async (req, res) => {
+    let accessToken = req.body.ACCESSTOKEN;
+    let userId;
+    let USER;
+
+    const checkToken = verifyAccessToken(accessToken);
+    if (checkToken.status==="success") {
+        userId = checkToken.userId;
+        USER = checkToken.username;
+        console.log(checkToken);
+    } else {
+        console.log(checkToken);
+
+        const refreshToken = req.cookies.refreshToken;
+        const newToken = newAccessToken(refreshToken) ;
+        if (newToken.status==="success") {
+            accessToken = newToken.accessToken ;
+            userId = newToken.userId;
+            USER = newToken.username;
+            console.log(newToken);
+        } else {
+            console.log(newToken);
+            res.status(403).json(newToken);
+            return;
+        }
+
+    }
+
+    try {
+        const { db } = await connectToDatabase();
+        console.log("getting notes");
+        const notes = await db
+        .collection("NoteCollection")
+        .find({ userId: userId }) 
+        .toArray();
+
+        console.log(notes, userId);
+
+        if (notes.length === 0) {
+        return res.status(404).json({ accessToken, USER, validated: true, notes:"none", message: "No notes found" });
+        }
+
+        res.json({accessToken, USER, notes});
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ validated: true , status: "failed" , message: "Server error" });
+    }
 });
 
 router.post("/delNote" , async (req , res) => {
-    try { 
-        const id = req.body.id;
-        const { db } = await connectToDatabase();
-        const del = await db.collection("NoteCollection").deleteOne({id : id});
-        console.log(del);
+    const id = req.body.id;
 
-        if (del) {
-            res.status(200).json([]);
-            console.log(`Note ${id} has been deleted `) ;
+    let accessToken = req.body.ACCESSTOKEN;
+    let userId;
+    let USER;
 
+    const checkToken = verifyAccessToken(accessToken);
+    if (checkToken.status==="success") {
+        userId = checkToken.userId;
+        USER = checkToken.username;
+        console.log(checkToken);
+    } else {
+        console.log(checkToken);
+
+        const refreshToken = req.cookies.refreshToken;
+        const newToken = newAccessToken(refreshToken) ;
+        if (newToken.status==="success") {
+            accessToken = newToken.accessToken ;
+            userId = newToken.userId;
+            USER = newToken.username;
+            console.log(newToken);
         } else {
-            res.status(404);
-            console.log("failed to delete");
+            console.log(newToken);
+            res.status(403).json(newToken);
+            return;
+        }
+
+    }
+
+    try { 
+        const { db } = await connectToDatabase();
+        const find = await db.collection("NoteCollection").findOne({id : id});
+        if (find.userId===userId) {
+            const del = await db.collection("NoteCollection").deleteOne({id : id});
+            if (del) {
+                res.status(200).json(accessToken);
+                console.log(`Note ${id} has been deleted `) ;
+
+            } else {
+                res.status(404);
+                console.log("failed to delete");
+            }
+        } else {
+            res.status(403).json({message: "you do not have permission to delete."});
         }
         
     } catch (err) {
@@ -114,18 +339,52 @@ router.post("/delNote" , async (req , res) => {
 })
 
 router.post("/editNote" , async (req , res) => {
-    try {
-        const {nId, id, title, content, createTime} =  req.body;
-        const { db } = await connectToDatabase();
-        const newNote = { id: nId , title, content , createTime };
-        const update = db.collection("NoteCollection")
-            .updateOne({id : id } , {$set: { id: nId , title, content , createTime } });
-        if (update) {
-            res.status(200).json([]);
-            console.log(newNote) ;
+    const {nId, id, title, content, createTime} =  req.body;
+
+    let accessToken = req.body.ACCESSTOKEN;
+    let userId;
+    let USER;
+
+    const checkToken = verifyAccessToken(accessToken);
+    if (checkToken.status==="success") {
+        userId = checkToken.userId;
+        USER = checkToken.username;
+        console.log(checkToken);
+    } else {
+        console.log(checkToken);
+
+        const refreshToken = req.cookies.refreshToken;
+        const newToken = newAccessToken(refreshToken) ;
+        if (newToken.status==="success") {
+            accessToken = newToken.accessToken ;
+            userId = newToken.userId;
+            USER = newToken.username;
+            console.log(newToken);
         } else {
-            res.status(404);
-            console.log('Note not found or cant be deleted')
+            console.log(newToken);
+            res.status(403).json(newToken);
+            return;
+        }
+
+    }
+
+    try {
+        const { db } = await connectToDatabase();
+        const newNote = {userId, id: nId , title, content , createTime };
+        
+        const find = await db.collection("NoteCollection").findOne({id : id});
+        if (find.userId===userId) {
+            const update = db.collection("NoteCollection")
+                .updateOne({id : id } , {$set: { id: nId , title, content , createTime } });
+            if (update) {
+                res.status(200).json(accessToken);
+                console.log(newNote) ;
+            } else {
+                res.status(404);
+                console.log('Note not found or cant be deleted')
+            }
+        } else {
+             res.status(403).json({message: "you do not have permission to edit."});
         }
     } catch (err) {
         console.log(err);
@@ -135,8 +394,32 @@ router.post("/editNote" , async (req , res) => {
 })
 
 router.post("/newNote" , async (req , res) => {
-    try {
-        const { title , content , createTime } = req.body ;
+    const {ACCESSTOKEN, title , content , createTime } = req.body ;
+    let accessToken = ACCESSTOKEN;
+    let userId;
+
+    const checkToken = verifyAccessToken(accessToken);
+    if (checkToken.status==="success") {
+        userId = checkToken.userId;
+        console.log(checkToken);
+    } else {
+        console.log(checkToken);
+
+        const refreshToken = req.cookies.refreshToken;
+        const newToken = newAccessToken(refreshToken) ;
+        if (newToken.status==="success") {
+            accessToken = newToken.accessToken ;
+            userId = newToken.userId;
+            console.log(newToken);
+        } else {
+            console.log(newToken);
+            res.status(403).json(newToken);
+            return;
+        }
+
+    }
+
+    try { 
         const { db } = await connectToDatabase();
         const Collection = db.collection("NoteCollection");
 
@@ -144,10 +427,10 @@ router.post("/newNote" , async (req , res) => {
         console.log(lastNote);
         const id = lastNote.id + 1;
         console.log(id) ;
-        const newNote = {id , title , content, createTime} ;
-        const insertNote = await Collection.insertOne({ id , title , content , createTime});
+        const newNote = {userId, id , title , content, createTime} ;
+        const insertNote = await Collection.insertOne({userId, id , title , content , createTime});
         if (insertNote.acknowledged) {
-            res.status(201).json([]);
+            res.status(201).json(accessToken, id);
             console.log(newNote) ;
 
         } else {

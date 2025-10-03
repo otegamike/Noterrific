@@ -1,0 +1,83 @@
+/* Start taking notes */
+
+position: absolute;
+width: 338px;
+height: 70px;
+left: 173px;
+top: 394px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 800;
+font-size: 24px;
+line-height: 29px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #FFFFFF;
+
+
+/* Group 5 */
+
+position: absolute;
+width: 149px;
+height: 24px;
+left: 1100px;
+top: 63px;
+
+
+
+/* Log in */
+
+position: absolute;
+width: 58px;
+height: 24px;
+left: 1191px;
+top: 63px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 20px;
+line-height: 120%;
+/* identical to box height, or 24px */
+
+color: #96C703;
+
+
+
+/* Sign up */
+
+position: absolute;
+width: 71px;
+height: 24px;
+left: 1100px;
+top: 63px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 20px;
+line-height: 120%;
+/* identical to box height, or 24px */
+
+color: #96C703;
+
+/* MacBook Air - 1 */
+
+position: relative;
+width: 1280px;
+height: 832px;
+
+background: linear-gradient(200.96deg, #EDF9CC 11.61%, #DCF399 77.58%);
+
+
+
+
+//vector shape
+<svg width="473" height="421" viewBox="0 0 473 421" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M48 107C57.5 59.8333 64.5 0 127 0C199.5 0 259 52.5 297 34.5C356.077 6.51595 488.295 41.4567 450.5 128.5C417.5 204.5 514.5 207.5 450.5 313C412.314 375.947 363.02 294.291 277 389C227.5 443.5 92.5001 426.622 92.5001 339.5C92.5001 242 35 301 8.50002 242C-18 183 25 130.5 48 107Z" fill="#96C703" fill-opacity="0.71"/>
+</svg>
+
+

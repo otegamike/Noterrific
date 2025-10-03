@@ -3,6 +3,72 @@ const spin = `<svg class="spinner" width="20px" height="20px" fill="#edf9cc"  vi
 const done = `<svg height="20px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 
+function DisplayPhoto(str, size = 100) {
+  if (!str || typeof str !== "string") return "";
+
+  // 1. Get first letter uppercase
+  const letter = str.charAt(0).toUpperCase();
+
+  // 2. Deterministic color from full string
+  function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    let color = "#";
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xFF;
+      color += ("00" + value.toString(16)).substr(-2);
+    }
+    return color;
+  }
+
+  const backgroundColor = stringToColor(str);
+
+  // 3. Contrast text color
+  function getContrastYIQ(hex) {
+    const r = parseInt(hex.substr(1, 2), 16);
+    const g = parseInt(hex.substr(3, 2), 16);
+    const b = parseInt(hex.substr(5, 2), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? "black" : "white";
+  }
+  const textColor = getContrastYIQ(backgroundColor);
+
+  // 4. Return HTML string
+  return `
+    <div style="
+      width:${size}px;
+      height:${size}px;
+      border-radius:50%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      font-size:${size * 0.5}px;
+      font-weight:700;
+      font-family:Arial, sans-serif;
+      background-color:${backgroundColor};
+      color:${textColor};
+    ">
+      ${letter}
+    </div>
+  `;
+}
+
+const ShowDisplayName = (uname) => {
+    const name = sessionStorage.getItem("username"); 
+    const username = uname? uname : name ;
+    if (username) {
+        sessionStorage.setItem("username", username);
+        const element = ` <span class="loginn" id="displayName">${username}</span>
+            <span class="profilepic" id="profilepic"> ${DisplayPhoto(username,40)}  </span>
+        `
+        document.getElementById("actions").innerHTML= element ;
+    }
+}
+
+window.onload = ShowDisplayName();
+
 const loaddate= (date) => {
         const dt = new Date(date);
         const now = new Date();
@@ -123,45 +189,63 @@ const getLatestId = () => {
 }
 
 const addToTop = (id, title, content, createTime) => {
+    
+    const ulEl = document.getElementById('noteUl');
+    if (!ulEl) {
+        const noteEl = document.getElementById("notes");
+        noteEl.innerHTML= `<ul id="noteUl">${liElement(id, title, content, createTime)}</ul>` ;
+    } else {
        const ulEl = document.getElementById('noteUl');
        const newLi = liElement(id, title, content, createTime) ;
        
        ulEl.insertAdjacentHTML("afterbegin", newLi);
+    }
 
 }
 
+const reLogin = () => {
+    sessionStorage.setItem("validate", "unvalidated");
+    window.location.href = "/login.html";
+}
 
+let ACCESSTOKEN ;
 
 
 async function getNotes() {
-
+    const loading= ` <div class="loadCon"> 
+            <span class="roller"> <svg class="spinner" width="60px" height="60px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg></span>
+            <span class="load"> loading notes </span>
+        </div>`;
+    const noteEl = document.getElementById("notes");
+    noteEl.innerHTML = loading ;
 
     try {
-        const loading= ` <div class="loadCon"> 
-             <span class="roller"> <svg class="spinner" width="60px" height="60px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg></span>
-             <span class="load"> loading notes </span>
-         </div>`;
-        const noteEl = document.getElementById("notes");
-        noteEl.innerHTML = loading ;
+        const res = await fetch(("/.netlify/functions/app/getNotes") , {
+            method: "POST" ,
+            headers: {"Content-type": "application/json" } ,
+            body: JSON.stringify({ACCESSTOKEN}) 
+        })
 
-        const request = await fetch("/.netlify/functions/app/getNotes");
-        if (request.ok) {
-             const data = await request.json();
-             const dataSort = data.sort((a, b) => new Date(b.createTime) - new Date(a.createTime) ) ; 
-             const noteContainer = dataSort.map(note => liElement (note.id, note.title, note.content, note.createTime)).join("");
+        const data = await res.json();
+        if (res.status===404 && data.notes==="none" ) {
+            noteEl.innerHTML = "you dont have any notes"
+        } else if (res.status===403 && data.status==="failed" ) {
+            reLogin()
+            return;
+        } else {
+            ACCESSTOKEN = data.accessToken;
+            const USER = data.USER ;
+            ShowDisplayName(USER);
+            const notes = data.notes;
+            const noteSort = notes.sort((a, b) => new Date(b.createTime) - new Date(a.createTime) ) ; 
+            const noteContainer = noteSort.map(note => liElement (note.id, note.title, note.content, note.createTime)).join("");
     
 
-             const noteUl = `<ul id="noteUl">${noteContainer}</ul>`;
-             noteEl.innerHTML=noteUl;
-
-        } else {
-            const reload = `<div class="reload" id="reload"><b>Couldn't connect to server</b> <br/> <a onclick="getNotes()">try again</a></div>`
-            noteEl.innerHTML=reload;
-            const err = request.status + " " + request.statusText;
-            throw new Error(err)
+            const noteUl = `<ul id="noteUl">${noteContainer}</ul>`;
+            noteEl.innerHTML=noteUl;
 
         }
-
+            
     } catch (error) {
          console.log(error);
     }
@@ -228,19 +312,23 @@ const saveNote = async () => {
         const res = await fetch(("/.netlify/functions/app/newNote"), {
             method: "POST",
             headers:  {"Content-type" : "application/json"},
-            body: JSON.stringify({title , content, createTime })
+            body: JSON.stringify({ACCESSTOKEN, title , content, createTime, })
         })
 
         if (res.ok) {
 
             const result = await res.json();
-            console.log("Success!", result);
+            if (result.accessToken) {
+                ACCESSTOKEN = result.accessToken;
+            }
+
+            console.log("Success!", ACCESSTOKEN);
             titleEl.value = "" ;
             contentEl.value = "";
             saveEl.innerHTML = done;
 
 
-            const nId = getLatestId();
+            const nId = result.id;
 
             addToTop(nId, title, content, createTime) ;
 
@@ -277,21 +365,31 @@ const serverDel = async (i) => {
         const res = await fetch(("/.netlify/functions/app/delNote") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
-            body: JSON.stringify({id}) 
+            body: JSON.stringify({ACCESSTOKEN , id}) 
         })
 
-        if (!res.ok) {
+        if (res.status===500) {
             const errTxt = "Could not delete note. Please try again later";
             errObbj(errTxt);
             preventClick("on", delId, delBtn(i) );
             throw new Error( "Network error");
+        } else if (res.status===403) {
+            const result = await res.json();
+            console.log(result.message);
+            const errTxt = "Couldn't validate your request. you must log in again";
+            errObbj(errTxt);
+            reLogin();
+            return;
         } else {
+            const result = await res.json();
+            ACCESSTOKEN = result.accessToken;
+            console.log("Success!", result);
+            delNote(i)
+        }
+        
 
-        const result = await res.json();
-        console.log("Success!", result);
-        delNote(i) }
-
-    } catch {
+    } catch (err) {
+        console.log(err);
 
     }
 }
@@ -312,7 +410,7 @@ const editMode = (i) => {
     const titleTarget = document.getElementById(`tit${i}`);
     const contentTarget = document.getElementById(`cont${i}`);
 
-    const titlebox = `<input type="text" style="background-color:#edf9cc" class="bold" id="titE${i}" value="${titleTarget.innerHTML}" />` ;
+    const titlebox = `<input type="text" style="background-color:#edf9cc" class="bold title" id="titE${i}" value="${titleTarget.innerHTML}" />` ;
     const contentbox = `<textarea id="contE${i}" style="background-color:#edf9cc" class="content">${contentTarget.innerHTML.replaceAll("<br>", "\n")} </textarea> ` ;
     const donebox = `<span id="editMode${i}" class="float"><span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span></span>`;
     
@@ -352,26 +450,33 @@ const serverEdit = async (i) => {
         const res = await fetch(("/.netlify/functions/app/editNote") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
-            body: JSON.stringify({nId, id, title, content, createTime }) 
+            body: JSON.stringify({ACCESSTOKEN, nId, id, title, content, createTime }) 
         })
 
-        if (!res.ok) {
+        if (res.status===500) {     
             const errTxt = "Can't connect to server. Please try again."
             errObbj(errTxt);
             const dnBigButton = `<span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span>`;
             preventClick("on", dnId, dnBigButton ) ;
             throw new Error( "Network error");
+        } else if (res.status===403) {
+            const result = await res.json();
+            console.log(result.message);
+            const errTxt = "Couldn't validate your request. you must log in again";
+            errObbj(errTxt);
+            reLogin();
+            return;
         } else {
-
-        const result = await res.json();
-        addToTop(nId, title, content, createTime);
-        delNote(i);
-        console.log("note Edited!", result);
-         }
+            const result = await res.json();
+            ACCESSTOKEN = result.accessToken;
+            addToTop(nId, title, content, createTime);
+            delNote(i);
+            console.log("note Edited!", result);
+        }
 
     } catch { 
         
-     }
+    }
 
 
 }
