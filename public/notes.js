@@ -140,6 +140,14 @@ const errObbj = (errText) => {
 
 }
 
+const animateblock = (target) => {
+    const targetEl = document.getElementById(target);
+
+    setTimeout(() => {
+        targetEl.classList.remove("offset-right");
+    }, 500);
+}
+
 const preventClick = (toggle, elementId, btn) => {
     const id = elementId ;
     const element = document.getElementById(id);
@@ -228,7 +236,7 @@ async function getNotes() {
 
         const data = await res.json();
         if (res.status===404 && data.notes==="none" ) {
-            noteEl.innerHTML = "you dont have any notes"
+            noteEl.innerHTML = `<div class="noNote">You dont have any notes. Create your first bote</div>`
         } else if (res.status===403 && !data.validated ) {
             reLogin()
             return;
@@ -241,14 +249,19 @@ async function getNotes() {
             const noteContainer = noteSort.map(note => liElement (note.id, note.title, note.content, note.createTime)).join("");
     
 
-            const noteUl = `<ul id="noteUl">${noteContainer}</ul>`;
+            const noteUl = `<ul id="noteUl" class="offset-right">${noteContainer}</ul>`;
             noteEl.innerHTML=noteUl;
+
+            animateblock("noteUl");
 
         }
             
     } catch (err) {
          console.error(err.message);
+         const reload = `<div class="reload" id="reload"><b>Couldn't connect to server</b> <br/> <a onclick="getNotes()">try again</a></div>`
+         noteEl.innerHTML=reload;
          errObbj("Could not connect to server retry");
+
     }
 
 }
@@ -410,7 +423,7 @@ const editMode = (i) => {
     const titleTarget = document.getElementById(`tit${i}`);
     const contentTarget = document.getElementById(`cont${i}`);
 
-    const titlebox = `<input type="text" style="background-color:#edf9cc" class="bold title" id="titE${i}" value="${titleTarget.innerHTML}" />` ;
+    const titlebox = `<input type="text" style="background-color:#edf9cc" class="bold editTitle" id="titE${i}" value="${titleTarget.innerHTML}" />` ;
     const contentbox = `<textarea id="contE${i}" style="background-color:#edf9cc" class="content">${contentTarget.innerHTML.replaceAll("<br>", "\n")} </textarea> ` ;
     const donebox = `<span id="editMode${i}" class="float"><span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span></span>`;
     

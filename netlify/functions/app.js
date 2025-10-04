@@ -223,7 +223,8 @@ router.post("/login" , async (req , res) => {
     const user = await users.findOne({username: username}) ;
     
     if (user===null) {
-        res.status(200).send(`${username} not found`)
+        res.status(200).json({status: false, message :"Username not found. create an account"});
+        return;
     } else {
         try {
             const confirm = await bcrypt.compare(password, user.hashedpassword);
@@ -240,13 +241,14 @@ router.post("/login" , async (req , res) => {
                     httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
                 });
                 
-                res.status(200).json({status: true, message :"Correct password", username, accessToken});
+                res.status(200).json({status: true, message :"Correct password", username});
 
             } else {
                 
                 console.log(confirm, "incorrect password");
                 res.status(200).json({status: false, message :"incorrect password"});
-
+                return;
+                
             }
         } catch (err) {
             console.error("Bcrypt compare failed:", err.message);

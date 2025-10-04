@@ -200,6 +200,12 @@ const LogIn = async () => {
     const submitEl = document.getElementById("submit");
     submitEl.innerHTML = geticon("spinner", 30);
 
+    if (username===""||password==="") {
+        errObbj("Fields can not be empty");
+        submitEl.innerHTML = "submit";
+        return;
+    }
+
     try {  
         const res = await fetch(("/.netlify/functions/app/login") , {
             method: "POST" ,
@@ -213,8 +219,15 @@ const LogIn = async () => {
             errObbj(errTxt); 
         } else {
             const result = await res.json();
-            sessionStorage.setItem("username", result.username);
-            window.location.href = "/notes.html";
+            if (!result.status) {
+                errObbj(result.message) ;
+                submitEl.innerHTML = "submit";
+                return;
+            } else {
+                sessionStorage.setItem("username", result.username);
+                window.location.href = "/notes.html";
+            }
+            
         }
     } catch (err) {
         console.error(err.message);
@@ -234,6 +247,12 @@ const Register = async () => {
 
     const submitEl = document.getElementById("submit");
     submitEl.innerHTML = geticon("spinner", 20);
+
+    if (username===""||password===""||email==="") {
+        errObbj("Fields can not be empty");
+        submitEl.innerHTML = "submit";
+        return;
+    }
 
     try {  
         const res = await fetch(("/.netlify/functions/app/register") , {
@@ -257,9 +276,8 @@ const Register = async () => {
 }
 
 const switchPage = (page,string) => {
-    const loginPage = `<h1 id="welcome" class="welcome">${string? string :"Welcome back please login"}</h1>
-            
-            <form>
+
+    const loginPage = `
             
                 <label for="username"> Username</label>
                 <input type="text" name="username" id="username" required />
@@ -271,18 +289,8 @@ const switchPage = (page,string) => {
                         <svg width="20px" height="20px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path class="eye" fill-rule="evenodd" clip-rule="evenodd" d="m0 8 3.08-3.695a6.405 6.405 0 0 1 9.84 0L16 8l-3.08 3.695a6.405 6.405 0 0 1-9.84 0zm8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6" fill="#1A1A1A"/></svg>
                     </span>
                 </div>
-            
-            </form>
-                <span onclick="LogIn()" id="submit" class="submitbtn">submit</span>
-
-               
-
-            <p>New user <a class="clicky" onclick="switchPage('register')">click here</a> to register</a></p>` ;
-    const registerPage = `  <h1 class="welcome">${string? string :"New user, please register"}</h1>
-        
-
-        <form>
-            <div class="username-container" >
+            ` ;
+    const registerPage = ` <div class="username-container" >
                 <label id="welcome" for="username"> Username</label>
                 <input type="text" oninput="checkAvailability('username','uAlert')" class="username" name="username" id="username" required />
                 <div class="alert" id="uAlert"></div>
@@ -307,19 +315,55 @@ const switchPage = (page,string) => {
                 <input type="password" name="repassword" oninput="matchPass()" class="repassword" id="repassword" required />
                 <div class="pass-alert" id="pAlert"></div> 
             </div>
-        </form>    
-
-            <span onclick="Register()" id="submit" class="submitbtn">submit</span>
-
-        <p >Already have an account? <a class="clicky" onclick="switchPage('login')">click here</a> to log in</a></p>` ;
+        ` ;
         
+
     const pageEl = document.getElementById("page");
+    const welcomeEl = document.getElementById("welcome");
+    const clickyEl = document.getElementById("clicky");
+    const submitConEl = document.getElementById("submitCon");
 
     if (page === "login") {
-        pageEl.innerHTML = loginPage;
+        pageEl.style.height= "185px" ;
+        pageEl.style.opacity = "0" ;
+        welcomeEl.style.opacity = "0" ;
+        clickyEl.style.opacity = "0" ;
 
+        setTimeout(() => {
+            pageEl.innerHTML = loginPage;
+            welcomeEl.innerHTML = string? string : "Welcome back please login" ;
+            clickyEl.innerHTML = `New user <a class="clicky" onclick="switchPage('register')">click here</a> to register`;
+            submitConEl.innerHTML =`<span onclick="LogIn()" id="submit" class="submitbtn">submit</span>`;
+        }, 800)
+        
+        setTimeout(() => {
+            pageEl.style.opacity = "1" ;
+            welcomeEl.style.opacity = "1" ;
+            clickyEl.style.opacity = "1" ;
+        }, 900)
+
+        
     } else {
-        pageEl.innerHTML = registerPage;
+        pageEl.style.height= "370px" ;
+        pageEl.style.opacity = "0" ;
+        welcomeEl.style.opacity = "0" ;
+        clickyEl.style.opacity = "0" ;
+
+        setTimeout(() => {
+            pageEl.innerHTML = registerPage;
+            welcomeEl.innerHTML = string? string : "New user, please register" ;
+            clickyEl.innerHTML = `Already have an account? <a class="clicky" onclick="switchPage('login')">click here</a> to log in`;
+            submitConEl.innerHTML =`<span onclick="Register()" id="submit" class="submitbtn">submit</span>`;
+        }, 900)
+
+        setTimeout(() => {
+            pageEl.style.opacity = "1" ;
+            welcomeEl.style.opacity = "1" ;
+            clickyEl.style.opacity = "1" ;
+           
+        }, 1000)
+
+       
 
     }
 
