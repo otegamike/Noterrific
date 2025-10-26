@@ -62,6 +62,7 @@ const checkAvailability = async (input,alertbox) => {
     const uNameEl = document.getElementById(input);
     const alertEl = document.getElementById(alertbox);
     let uName = uNameEl.value ;
+    uName= uName.toLowerCase();
 
     if (input==="username") { 
         if (uName.length<=3) {
@@ -134,18 +135,18 @@ const togglePassword = (type) => {
     if (type==="login") {
         if (passEl.type === "password") {
             passEl.type = "text" ;
-            togglrPassEl.innerHTML = geticon("eye-close", 20);
+            togglrPassEl.innerHTML = geticon("eye-open", 20);
         }  else {
              passEl.type = "password" ;
-             togglrPassEl.innerHTML = geticon("eye-open", 20);}
+             togglrPassEl.innerHTML = geticon("eye-close", 20);}
     } else if (passEl.type === "password") {
         passEl.type = "text" ;
         rePassEl.type = "text";
-        togglrPassEl.innerHTML = geticon("eye-close", 20);
+        togglrPassEl.innerHTML = geticon("eye-open", 20);
     } else {
         passEl.type = "password" ;
         rePassEl.type = "password";
-        togglrPassEl.innerHTML = geticon("eye-open", 20);
+        togglrPassEl.innerHTML = geticon("eye-close", 20);
     }
 }
 
@@ -194,7 +195,8 @@ const LogIn = async () => {
 
     const usernameEl = document.getElementById("username");
     const passwordEl= document.getElementById("password");
-    const username = usernameEl.value ;
+    const usernameCase = usernameEl.value ;
+    const username = usernameCase.toLowerCase() ;
     const password = passwordEl.value ; 
 
     const submitEl = document.getElementById("submit");
@@ -241,8 +243,10 @@ const Register = async () => {
     const passwordEl= document.getElementById("password");
     const emailEl= document.getElementById("email");
 
-    const email = emailEl.value ;
-    const username = usernameEl.value ;
+    const emailCase = emailEl.value ;
+    const email = emailCase.toLowerCase() ;
+    const usernameCase = usernameEl.value ;
+    const username = usernameCase.toLowerCase() ;
     const password = passwordEl.value ; 
 
     const submitEl = document.getElementById("submit");
@@ -286,7 +290,7 @@ const switchPage = (page,string) => {
                 <div class="passCon" >
                     <input type="password" name="password" class="password" id="password" required />
                     <span class="togglePass" id="togglePass" onclick="togglePassword('login')"> 
-                        <svg width="20px" height="20px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path class="eye" fill-rule="evenodd" clip-rule="evenodd" d="m0 8 3.08-3.695a6.405 6.405 0 0 1 9.84 0L16 8l-3.08 3.695a6.405 6.405 0 0 1-9.84 0zm8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6" fill="#1A1A1A"/></svg>
+                        ${geticon("eye-close", 20)}
                     </span>
                 </div>
             ` ;
@@ -306,7 +310,7 @@ const switchPage = (page,string) => {
             <div class="passCon" >
                 <input type="password" name="password" oninput="matchPass()" class="password" id="password" required />
                 <span class="togglePass" id="togglePass" onclick="togglePassword()"> 
-                    <svg width="20px" height="20px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path class="eye" fill-rule="evenodd" clip-rule="evenodd" d="m0 8 3.08-3.695a6.405 6.405 0 0 1 9.84 0L16 8l-3.08 3.695a6.405 6.405 0 0 1-9.84 0zm8 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6" fill="#1A1A1A"/></svg>
+                    ${geticon("eye-close", 20)}
                 </span>
             </div>
         
@@ -332,7 +336,7 @@ const switchPage = (page,string) => {
         setTimeout(() => {
             pageEl.innerHTML = loginPage;
             welcomeEl.innerHTML = string? string : "Welcome back please login" ;
-            clickyEl.innerHTML = `New user <a class="clicky" onclick="switchPage('register')">click here</a> to register`;
+            clickyEl.innerHTML = `New user <a class="clicky" onclick="switchPage('signup')">click here</a> to register`;
             submitConEl.innerHTML =`<span onclick="LogIn()" id="submit" class="submitbtn">submit</span>`;
         }, 800)
         
@@ -343,7 +347,7 @@ const switchPage = (page,string) => {
         }, 900)
 
         
-    } else {
+    } else if (page === "signup") {
         pageEl.style.height= "370px" ;
         pageEl.style.opacity = "0" ;
         welcomeEl.style.opacity = "0" ;
@@ -372,11 +376,20 @@ const switchPage = (page,string) => {
 
 
 const loader = () => {
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get("page");
+    
     const validity = sessionStorage.getItem("validate"); 
 
     if (validity) {   
         switchPage('login', "you must log in first");
         sessionStorage.removeItem("validity") ;
+    }
+
+    if (page==="login") {
+        switchPage('login') ;
+    } else if (page==="signup") {
+        switchPage('signup');
     }
 }
 

@@ -248,7 +248,7 @@ router.post("/login" , async (req , res) => {
                 console.log(confirm, "incorrect password");
                 res.status(200).json({status: false, message :"incorrect password"});
                 return;
-                
+
             }
         } catch (err) {
             console.error("Bcrypt compare failed:", err.message);
@@ -397,12 +397,12 @@ router.post("/editNote" , async (req , res) => {
 
     try {
         const { db } = await connectToDatabase();
-        const newNote = {userId, id: nId , title, content , createTime };
+        const newNote = {userId, id , title, content , createTime };
         
         const find = await db.collection("NoteCollection").findOne({id : id});
         if (find.userId===userId) {
             const update = db.collection("NoteCollection")
-                .updateOne({id : id } , {$set: { id: nId , title, content , createTime } });
+                .updateOne({id : id } , {$set: { id , title, content , createTime } });
             if (update) {
                 res.status(200).json(accessToken);
                 console.log(`note ${id} updated`) ;
@@ -428,16 +428,13 @@ router.post("/newNote" , async (req , res) => {
     const checkToken = verifyAccessToken(accessToken);
     if (checkToken.status==="success") {
         userId = checkToken.userId;
-        console.log(checkToken);
     } else {
-        console.log(checkToken);
 
         const refreshToken = req.cookies.refreshToken;
         const newToken = newAccessToken(refreshToken) ;
         if (newToken.status==="success") {
             accessToken = newToken.accessToken ;
             userId = newToken.userId;
-            console.log(newToken);
         } else {
             console.log(newToken);
             res.status(403).json(newToken);
@@ -456,8 +453,7 @@ router.post("/newNote" , async (req , res) => {
         const insertNote = await Collection.insertOne({userId, id , title , content , createTime});
 
         if (insertNote.acknowledged) {
-            res.status(201).json(accessToken, id);
-            console.log(newNote) ;
+            res.status(201).json({accessToken, id});
 
         } else {
              res.status(404);

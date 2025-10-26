@@ -10,11 +10,11 @@
     <link rel="icon" type="image/x-icon" href="/src/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/notes.css" />
+    <link rel="stylesheet" href="/css/notes.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Noterrific</title>
 </head>
-<body id="body" class="grad"> 
+<body id="body" class="grad"><div class="gradd">
 
    <div class="landingPageHeader bottomline" >
         <a href="/index.html" class="pageTitle">
@@ -30,9 +30,9 @@
         
     <div class="textContainer">
         <div class="textinput" id="inputarea">
-            <input type="text" placeholder="Title" id="title" class="title" oninput="formatTitle()">
+            <input type="text" placeholder="Title" id="title" class="title"> 
             <textarea name="content" placeholder="Take a note..." id="content"></textarea>
-                <span class="save" onclick="saveNote()" id="save"> Done</span>
+                <span class="save" id="save"> Save</span>
         </div>
     </div>
 
@@ -43,7 +43,8 @@
          </div>
     </div>
 
-    <script src="/notes.js"></script>
+    <script type="module" src="/js/notes.js"></script>
 
-</body>
+
+</div></body>
 </html>

@@ -5,10 +5,14 @@
     --primary-color3:#caec66;
     --semi-light:#96c703;
     --colorlight:#dcf399;
+    --colormidlight:#e7f3c6;
     --colorligher:#edf9cc;
     --colordark:#5e7e00;
     --colordarker:#7fa804;
     --colorwhite:#fcfff2;
+    --max-opacity: 1;
+    --editmode: hsl(76deg 65% 83) ;
+    --editmodefocus: hsl(76deg 65% 81) ;
 
 
 
@@ -258,18 +262,18 @@ a {
 }
 
 .grad {
-    position: relative;
+
     width: 100%;
-    min-height: 100%;
+    min-height: 100vh;
+    z-index: -1;
+    position: relative;
 
     background: linear-gradient(200.96deg, #f8fcee 11.61%, #f9ffe6 77.58%);
    
-   
-
-
 }
 
 .grad::before {
+    z-index: -2;
     position: fixed;
     top: 0px;
     left: 0px;
@@ -282,6 +286,7 @@ a {
     background-size: 400px;
     background-position: center;
 }
+
 
 /*Login Page*/
 
@@ -548,12 +553,12 @@ color: #000000;
 .notes {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     width: 100%;
 }
 
 ul {
     list-style-type: none;
+    width: 100%;
     padding-left: 0;
     margin: 0;
     display: flex;
@@ -561,13 +566,9 @@ ul {
     justify-content:space-evenly;
     transform: translateX(0px) translateY(0px);
     opacity: 1;
-    transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+    transition: transform 0.5s ease, opacity 0.5s ease;
 }
 
-.offset-right {
-    transform: translateX(20%);
-    opacity: 0;
-}
 
 .noNote {
     position: relative ;
@@ -589,6 +590,19 @@ li {
     width: 90%;
     max-width: 400px;
     min-width: 90vw;
+    margin-top: 15px;
+    overflow: hidden;
+    max-height: 300px;
+    transition: margin-top 0.8s ease, height 0.8s ease , opacity 0.8s ease;
+}
+
+
+.list {
+    position: relative ;
+    width: 90vw;
+    height: fit-content;
+    max-width: 400px;
+    min-width: 90vw;
     background-color: var(--colorligher);
     display: flex;
     flex-direction: column;
@@ -596,17 +610,35 @@ li {
     padding: 15px;
     padding-bottom: 10px;
     border-radius: 10px;
-    margin-top: 15px;
     cursor: pointer;
     max-height: 300px;
-    transition: height 1s linear ;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0%);
+    transition: transform 0.6s ease, opacity 0.6s ease, background-color 0.3s ease;
+}
 
+.listedit {
+    padding-right: 10px;
+    background-color: var(--editmode) ;
 
 }
 
-li:hover {
+.offset-right {
+    opacity: 0;
+    transform: translateX(20%);
+    transition: transform 0.6s ease, opacity 0.6s ease;
+}
+
+.list:hover {
     box-shadow: 0px 0px 10px var(--primary-color);
     
+}
+
+.listHide {
+    height: 1px ;
+    margin-top: 0px;
+    opacity: 0 ;
 }
 
 .bold {
@@ -614,7 +646,7 @@ li:hover {
     color: var(--colordarker);
     width: 100%;
     margin-bottom: 5px;
-    width: 77%;
+    width: 90%;
 
 
 }
@@ -644,25 +676,31 @@ input[type="text"].title:focus {
 } 
 
 input[type="text"].editTitle {
+    position: relative;
+    left: -5px;
+    background-color: var(--editmode);
     font-size: 1rem;
     outline: none;
     padding: 0px;
+    padding-left: 5px;
+    padding-top: 2px;
     border: 0px;
     height: auto;
     margin-bottom: 0px;
-    border-radius: 0px;
+    border-radius: 10px 0px 0px 0px;
 }
 
 input[type="text"].editTitle:focus {
-    background-color: var(--colorligher); 
+    background-color: var(--editmodefocus); 
     box-shadow: 0 0 1px var(--primary-color);
 } 
 
 .textinput {
     position: relative;
+
     background-color: var(--colorwhite);
     width: 80%;
-    max-height:200px ;
+    height: fit-content;
     outline: none;
     border-radius: 13px;
     padding: 10px;
@@ -684,10 +722,13 @@ input[type="text"].editTitle:focus {
 
 textarea {
     width: 100%;
-    height: 100px;
+    min-height: 5lh;
+    field-sizing: content;
+    max-height: 10lh;
     font-size: 1rem;
     padding-left: 5px;
     padding-top: 2px;
+    padding-bottom: 20px;
     box-sizing: border-box;
     border: 0px;
     outline: none;
@@ -695,6 +736,22 @@ textarea {
     margin: 0px;
     margin-top: 5px;
     border-radius:0px 0px 10px 10px;
+}
+
+.editContent {
+    position: relative;
+    left: -5px;
+    font-size: 1rem;
+    line-height: 22px;
+    padding-top: 0px;
+    padding-left: 5px;
+    margin-top: 0px;
+    background-color: var(--editmode)
+}
+
+textarea.editContent:focus {
+    background-color: var(--editmodefocus); 
+    box-shadow: 0 0 1px var(--primary-color);
 }
 
 textarea:focus {
@@ -773,6 +830,7 @@ textarea:focus {
 }
 
 .contentCon {
+    height: 100%;
     margin-top:5px;
     margin-bottom: 20px;
 }
@@ -782,13 +840,23 @@ textarea:focus {
     display: flex;
     top: -5px;
     right: -5px;
+    background-color: #edf9cc;
     height: 32px;
     box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 0.5s, background-color 0.5s;
+
 }
 
+
+.floatedit {
+    background-color: var(--editmode);
+ }
+
 .floatbutton {
-    width: 32px;
-    height: 32px;
+    display: flex;
+    width: 30px;
+    height: 30px;
     margin-left: 6px;
     box-sizing: border-box;
     border: 2px solid var(--semi-light);
@@ -796,10 +864,15 @@ textarea:focus {
     border-radius: 8px;
     box-shadow: 0px 0px 1px grey;
     justify-content: center;
+    align-items: center;
     padding-top: 1px;
-    opacity: 0;
-    transition: opacity 0.5s, background-color 0.5s;
+    
 
+}
+
+.usernameBold {
+    color: var(--colordark);
+    font-weight: 600;
 }
 
 .floatbutton:hover{
@@ -809,8 +882,9 @@ textarea:focus {
 }
 
 .floatbuttonDark {
-    width: 32px;
-    height: 32px;
+    display: flex;
+    width: 30px;
+    height: 30px;
     margin-left: 6px;
     box-sizing: border-box;
     border: 2px solid var(--semi-light);
@@ -818,9 +892,7 @@ textarea:focus {
     border-radius: 8px;
     box-shadow: 0px 0px 1px grey;
     justify-content: center;
-    padding-top: 1px;
-    opacity: 0;
-    transition: opacity 0.5s, background-color 0.5s;
+    align-items: center;
 
 }
 
@@ -854,17 +926,23 @@ textarea:focus {
     
 }
 
-li:hover .floatbutton{
+ 
+.list:hover .float{
     opacity: 1;
 }
 
-li:hover .floatbuttonDark{
+/* 
+.list:hover .floatbutton{
     opacity: 1;
 }
 
-li:hover .edit{
+.list:hover .floatbuttonDark{
     opacity: 1;
 }
+
+.list:hover .edit{
+    opacity: 1;
+} */
 
 .loadCon {
     position:relative;
@@ -899,6 +977,11 @@ a {
 }
 
 .reload {
+    display:flex ;
+    flex-direction: column;
+    width: 100% ;
+    justify-content: center;
+    align-items: center;
     margin-top: 40px;
 }
 
@@ -922,6 +1005,11 @@ a {
     font-size: small;
     opacity: 0;
     transition: opacity 0.5s ease-in-out;
+}
+
+.disabled {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .fade-in {
@@ -998,6 +1086,19 @@ a {
 
     li {
         min-width: 400px;
+    }
+
+    .list {
+        min-width: 400px;
+        height: 100%;
+    }
+
+    .contentCon{
+        height: 100%;
+    }
+
+    .editContent {
+        height: 100% ;
     }
 
     .offset-right {
