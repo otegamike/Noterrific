@@ -1,14 +1,20 @@
 {
 	"geolocation": {
 		"data": {
+			"city": "London",
 			"country": {
-				"code": "NG",
-				"name": "Nigeria"
+				"code": "GB",
+				"name": "United Kingdom"
 			},
-			"timezone": "Africa/Lagos",
-			"latitude": 10,
-			"longitude": 8
+			"subdivision": {
+				"code": "ENG",
+				"name": "England"
+			},
+			"timezone": "Europe/London",
+			"latitude": 51.5081,
+			"longitude": -0.1278,
+			"postalCode": "EC1N"
 		},
-		"timestamp": 1761458950712
+		"timestamp": 1761646862267
 	}
 }

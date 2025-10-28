@@ -2,8 +2,6 @@ import defaultNote from "/js/defaultNotes.js";
 import { geticon, icons } from "/js/svg.js";
 
 
-const spin = `<svg class="spinner" width="20px" height="20px" fill="#edf9cc"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg>`;
-const done = `<svg height="20px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 
 function DisplayPhoto(str, size = 100) {
@@ -222,12 +220,11 @@ const disableBtn = (toggle , id , disableClass) => {
     console.log(disableclass);
     if (toggle==="on") {
         //disable button
-        console.log("disabling..." + id);
         element.classList.add(disableclass);
+
 
     } else if (toggle==="off") {
         // Enable button
-        console.log("enabling..." + id);
         element.classList.remove(disableclass);
     } else {
         console.warn('Invalid toggle value. Use "on" or "off".');
@@ -285,7 +282,7 @@ const saveEdit = (id, title, content, createTime) => {
     const listEl = document.getElementById(`list${id}`);
     listEl.classList.remove("listedit");
 
-    const titlespan = `<span id="tit${id}" class="bold">${title} </span>`;
+    const titlespan = `<span id="tit${id}" class="bold">${title}</span>`;
     const delSpan = `${delBtn(id)}`;
     const editSpan = `${editBtn(id)}`;
      
@@ -354,6 +351,17 @@ const reLogin = () => {
 }
 
 let ACCESSTOKEN ;
+let EDITARRAY ;
+
+const checkChanges = (obj) => {
+    if (!obj.id||!EDITARRAY.id) {
+        return "cancel"; 
+    } else if (obj.id===EDITARRAY.id&&obj.title===EDITARRAY.title&&obj.content===EDITARRAY.content) {
+        return false
+    } else {
+        return true
+    }
+}
 
 
 async function getNotes() {
@@ -629,8 +637,16 @@ const editMode = (i) => {
         const titleTarget = document.getElementById(`tit${i}`);
         const contentTarget = document.getElementById(`cont${i}`);
 
-        const titlebox = `<input type="text" class="bold editTitle" id="titE${i}" value="${titleTarget.innerHTML}" />` ;
-        const contentbox = `<div class="contentCon"> <textarea id="contE${i}" class="editContent">${contentTarget.innerHTML.replaceAll("<br>", "\n")} </textarea></div> ` ;
+        const id = i ;
+        const title = titleTarget.innerHTML ;
+        const content = contentTarget.innerHTML.replaceAll("<br>", "\n") ;
+
+
+        EDITARRAY = {id: Number(id) , title: title.trim() , content: content.trim()}  ;
+        console.log(EDITARRAY) ;
+
+        const titlebox = `<input type="text" class="bold editTitle" id="titE${i}" value="${title.trim()}" />` ;
+        const contentbox = `<div class="contentCon"> <textarea id="contE${i}" class="editContent">${content.trim()}</textarea></div> ` ;
         const donebox = `<span id="editMode${i}" class="float floatedit"><span class="floatbuttonDark" id="dn${i}">${geticon("check", 20 )}</span></span>`;
         
         const editbox = `<div class="list listedit" id="list${i}"> <div class='titleCon'>${titlebox}${donebox}</div>${contentbox}</div>`;
@@ -657,6 +673,23 @@ const serverEdit = async (i) => {
     const title = titleEl.value;
     const content = contentEl.value;
     const createTime = new Date().toISOString() ;
+
+    const editObj = {id: id ,  title: title.trim() , content: content.trim()} ;
+
+
+    //check for changes
+    const changes = checkChanges(editObj) ;
+    console.log(editObj, changes) ;
+
+    // If no changes are made return
+    if (!changes) {
+        
+        saveEdit(id, title, content, createTime);
+        EDITARRAY = null;
+        return
+    }
+
+    
     const nId = getLatestId();
 
 
@@ -670,6 +703,8 @@ const serverEdit = async (i) => {
     //  Disable button while waiting for server response.
     disableBtn("on" , dnId);
     const requestTimeout = reqTimeout() ;
+
+    
 
   try {  
         const res = await fetch(("/.netlify/functions/app/editNote") , {
@@ -739,7 +774,32 @@ document.addEventListener("click", function (e) {
         
         if (e.target.closest(".floatbutton").classList.contains("disabled")) return;
         const id = e.target.closest(".floatbutton").id.replace("edit", "");
-        console.log("clicked edit" + id);
+
+        // check if an element is already being edited and prompt the user to finish editing it 
+        if (EDITARRAY) { 
+            const edId = EDITARRAY.id ;
+            const edContentEl = document.getElementById(`contE${edId}`) ;
+            const len = edContentEl.innerHTML.length;
+            errObbj("You must finish editing note first");
+            //change background of the note being editted to highlight it 
+            document.documentElement.style.setProperty('--editmode', 'hsl(76deg 50% 70)') ;
+            document.documentElement.style.setProperty('--editmodefocus', 'hsl(76deg 50% 70)') ;
+            //place cursor at the end of edit box
+            edContentEl.focus() ;
+            edContentEl.setSelectionRange(len , len);
+
+            setTimeout(()=> {
+                document.documentElement.style.setProperty('--editmode', 'hsl(76deg 65% 83)') ;
+                document.documentElement.style.setProperty('--editmodefocus', 'hsl(76deg 65% 81)') ;
+            }, 1000) ;
+
+            // change color back after a timeout 
+
+
+            console.log(EDITARRAY);
+
+            return;
+        }
         if (!isNaN(id)) {
             console.log("editmode activated") ;
             editMode(id);
@@ -797,7 +857,12 @@ document.addEventListener("keydown", function (e) {
     ) {
         e.preventDefault();
         const contentEl = document.getElementById("content");
-        if (contentEl) contentEl.focus();
+        const len = contentEl.innerHTML.length;
+        if (contentEl) {
+            contentEl.focus(); 
+            contentEl.setSelectionRange(len , len);
+        }
+
     }
     // For edit mode (dynamic ids)
     if (
@@ -807,7 +872,11 @@ document.addEventListener("keydown", function (e) {
         e.preventDefault();
         const i = document.activeElement.id.replace("titE", "");
         const contentEditEl = document.getElementById(`contE${i}`);
-        if (contentEditEl) contentEditEl.focus();
+        const len = contentEditEl.innerHTML.length;
+        if (contentEditEl) {
+            contentEditEl.focus(); 
+            contentEditEl.setSelectionRange(len , len);
+        }
     }
 });
 
