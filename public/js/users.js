@@ -65,7 +65,7 @@ const checkAvailability = async (input,alertbox) => {
     uName= uName.toLowerCase();
 
     if (input==="username") { 
-        if (uName.length<=3) {
+        if (alertEl&&uName.length<=3) {
             targetEl.classList.remove("username-available","username-unavailable" );
             alertEl.innerHTML = `${geticon("wrong", 20)} <span class="alerttxt">username can't be less than 3 letters</span>`;
             
@@ -155,8 +155,8 @@ const matchPass = () => {
 
     const passEl = document.getElementById("password");
     const rePassEl = document.getElementById("repassword");
-    const pass = passEl.value ;
-    const rePass = rePassEl.value ;
+    const pass = passEl?passEl.value: ""; ;
+    const rePass = rePassEl?rePassEl.value: "";
     const alertEl = document.getElementById("pAlert");
 
     if (rePass==="") {
@@ -378,18 +378,23 @@ const switchPage = (page,string) => {
 const loader = () => {
     const params = new URLSearchParams(window.location.search);
     const page = params.get("page");
+    const logout = params.get("logout");
     
     const validity = sessionStorage.getItem("validate"); 
 
-    if (validity) {   
+    if (document.cookie.includes("has_auth=true")) {
+        window.location.href = "/notes.html";
+        return;
+    }
+    if (page==="invalidated") {   
         switchPage('login', "you must log in first");
         sessionStorage.removeItem("validity") ;
-    }
-
-    if (page==="login") {
+    } else if (page==="login") {
         switchPage('login') ;
     } else if (page==="signup") {
         switchPage('signup');
+    } else if (logout==="true") {
+        switchPage('login', "Logged out successfully. You can log in again below.");
     }
 }
 

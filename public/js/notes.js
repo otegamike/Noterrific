@@ -62,7 +62,12 @@ const ShowDisplayName = (uname) => {
     if (username) {
         sessionStorage.setItem("username", username);
         const usernameCapitalized = username.charAt(0).toUpperCase()+username.slice(1);
-        const element = ` <span class="loginn" id="displayName">${usernameCapitalized}</span>
+        const element = ` <span class="loginn display-name" id="displayName"> <span class="uname">${usernameCapitalized}</span>
+                                                                             <span class="panel">
+                                                                                <span class="tablink" id="logout"> logout</span>
+                                                                                <span class="tablink" id="reload"> reload</span>
+                                                                             </span>
+        </span>
             <span class="profilepic" id="profilepic"> ${DisplayPhoto(username,40)}  </span>
         `
         document.getElementById("actions").innerHTML= element ;
@@ -153,21 +158,44 @@ const errObbj = (errText) => {
 
 //Animations
 
-const animateblock = (targetId,animator,type,delay) => {
+const animateblock = (targetId, animator, type = "remove", delay = 500, callback = null) => {
     const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
 
-    if (type==="add") {
-        setTimeout(() => {
+    // 1. Define what happens when animation ends
+    const onAnimationComplete = () => {
+        // Clean up the listener so it doesn't fire again
+        targetEl.removeEventListener('animationend', onAnimationComplete);
+        targetEl.removeEventListener('transitionend', onAnimationComplete);
+
+        // Check if user wants to delete or run a custom function
+        if (callback === "delete") {
+            targetEl.remove(); // Removes element from DOM
+            console.log(`Deleted ${targetId} from DOM`);
+        } else if (typeof callback === "function") {
+            callback(); // Runs custom function
+        }
+    };
+
+    const performAction = () => {
+        // 2. Add listeners for both CSS Animation AND Transitions
+        // We add these BEFORE changing the class to catch the event
+        if (callback) {
+            targetEl.addEventListener('animationend', onAnimationComplete, { once: true });
+            targetEl.addEventListener('transitionend', onAnimationComplete, { once: true });
+        }
+
+        // 3. Toggle the class
+        if (type === "add") {
             targetEl.classList.add(animator);
             console.log(`${type} ${animator} from ${targetId}`);
-        }, delay);
-
-    } else if (type==="remove") { 
-        setTimeout(() => {
+        } else if (type === "remove") {
             targetEl.classList.remove(animator);
-        }, delay);
+        }
+    };
 
-    }
+    // 4. Wait for the initial delay, then start
+    setTimeout(performAction, delay);
 }
 
 const delAnimation = (index) => {
@@ -347,11 +375,13 @@ const reqTimeout = (timeout = 30000) => {
 
 const reLogin = () => {
     sessionStorage.setItem("validate", "unvalidated");
-    window.location.href = "/login.html";
+    document.cookie = "has_auth=fasle";
+    window.location.href = "/login.html?page=invalidated";
 }
 
 let ACCESSTOKEN ;
 let EDITARRAY ;
+let USER ;
 
 const checkChanges = (obj) => {
     if (!obj.id||!EDITARRAY.id) {
@@ -366,9 +396,9 @@ const checkChanges = (obj) => {
 
 async function getNotes() {
     const loading= ` <div class="loadCon"> 
-            <span class="roller"> <svg class="spinner" width="60px" height="60px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg></span>
-            <span class="load"> loading notes </span>
+            <span class="load"> ${geticon("custom-loader")} loading notes </span>
         </div>`;
+    
     const noteEl = document.getElementById("notes");
     noteEl.innerHTML = loading ;
     console.log("getting notes");
@@ -379,7 +409,7 @@ async function getNotes() {
         const res = await fetch(("/.netlify/functions/app/getNotes") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
-            body: JSON.stringify(ACCESSTOKEN) ,
+            body: JSON.stringify({ACCESSTOKEN : ACCESSTOKEN}) ,
             signal: requestTimeout.signal,
         })
         //clear timer if server responds
@@ -387,7 +417,7 @@ async function getNotes() {
 
         const data = await res.json();
         if (res.status===404 && data.notes==="none" ) {
-            const USER = data.USER ;
+            USER = data.USER ;
             const userBold = `<span class="usernameBold">${USER.charAt(0).toUpperCase()+USER.slice(1)}</span>`
             const defaultnote = defaultNote(userBold);
             const noteContainer = defaultnote.map(note => liElement (note.id, note.title, note.content, 0)).join("");
@@ -402,7 +432,7 @@ async function getNotes() {
             return;
         } else {
             ACCESSTOKEN = data.accessToken;
-            const USER = data.USER ;
+            USER = data.USER ;
             ShowDisplayName(USER);
             const notes = data.notes;
             const noteSort = notes.sort((a, b) => new Date(b.createTime) - new Date(a.createTime) ) ; 
@@ -411,7 +441,8 @@ async function getNotes() {
 
             const noteUl = `<ul id="noteUl" class="offset-right">${noteContainer}</ul>`;
             noteEl.innerHTML=noteUl;
-
+            // Animate loader out
+            animateblock("loadCon","fade-out","add", 250, "delete");
             animateblock("noteUl","offset-right","remove", 500);
 
         }
@@ -423,9 +454,12 @@ async function getNotes() {
         }
 
          console.error(err.message);
-         const reload = `<div class="reload"><b>Couldn't connect to server</b> <span id="reload" style="color: var(--colordarker); cursor: pointer;" >try again</span></div>`
+         const reload = `<div class="reload"><span class="load"><b>Couldn't connect to server</b> <span id="reload" style="color: var(--colordarker); cursor: pointer;" >try again</span></span></div>`
          noteEl.innerHTML=reload;
+         animateblock("loadCon","fade-out","add", 250, "delete");
+
          errObbj("Could not connect to server retry");
+         
 
     }
 
@@ -643,7 +677,6 @@ const editMode = (i) => {
 
 
         EDITARRAY = {id: Number(id) , title: title.trim() , content: content.trim()}  ;
-        console.log(EDITARRAY) ;
 
         const titlebox = `<input type="text" class="bold editTitle" id="titE${i}" value="${title.trim()}" />` ;
         const contentbox = `<div class="contentCon"> <textarea id="contE${i}" class="editContent">${content.trim()}</textarea></div> ` ;
@@ -679,7 +712,6 @@ const serverEdit = async (i) => {
 
     //check for changes
     const changes = checkChanges(editObj) ;
-    console.log(editObj, changes) ;
 
     // If no changes are made return
     if (!changes) {
@@ -736,6 +768,7 @@ const serverEdit = async (i) => {
         } else {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;
+            EDITARRAY = null;
             saveEdit(id, title, content, createTime);
         }
 
@@ -747,6 +780,42 @@ const serverEdit = async (i) => {
     }
 
 
+}
+
+const logOut = async() => {
+    console.log(ACCESSTOKEN, USER);
+
+    try {
+        const res = await fetch(("/.netlify/functions/app/logout") , {
+            method: "POST" ,
+            headers: {"Content-type": "application/json" } ,
+            body: JSON.stringify({ACCESSTOKEN, USER}) ,
+        });
+        const data = await res.json();
+        if (res.status===500) {
+            const errTxt = "Could not log you out. Please try again later";
+            errObbj(errTxt);
+            throw new Error( "Network error");
+        } else if (res.status===200) {
+            console.log(data.message);
+            sessionStorage.removeItem("validate");
+            sessionStorage.removeItem("username");
+            ACCESSTOKEN = null ;
+            USER = null ;
+            window.location.href = "/login.html?logout=true";
+        } else if (res.status===403) {
+            sessionStorage.removeItem("validate");
+            sessionStorage.removeItem("username");
+            ACCESSTOKEN = null ;
+            USER = null ;
+            window.location.href = "/login.html?logout=true";
+        }
+         
+    } catch (err) { 
+        console.log(err.message);
+
+    }
+    
 }
 
 
@@ -774,12 +843,12 @@ document.addEventListener("click", function (e) {
         
         if (e.target.closest(".floatbutton").classList.contains("disabled")) return;
         const id = e.target.closest(".floatbutton").id.replace("edit", "");
-
+        
         // check if an element is already being edited and prompt the user to finish editing it 
         if (EDITARRAY) { 
             const edId = EDITARRAY.id ;
             const edContentEl = document.getElementById(`contE${edId}`) ;
-            const len = edContentEl.innerHTML.length;
+            const len = edContentEl.innerHTML.length ;
             errObbj("You must finish editing note first");
             //change background of the note being editted to highlight it 
             document.documentElement.style.setProperty('--editmode', 'hsl(76deg 50% 70)') ;
@@ -796,7 +865,6 @@ document.addEventListener("click", function (e) {
             // change color back after a timeout 
 
 
-            console.log(EDITARRAY);
 
             return;
         }
@@ -880,3 +948,10 @@ document.addEventListener("keydown", function (e) {
     }
 });
 
+
+// Event listener for reload button
+document.addEventListener("click", function (e) {
+  if (e.target && e.target.id === "logout") {
+    logOut();
+  }
+});

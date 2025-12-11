@@ -41,6 +41,14 @@ export const icons = [
     {
         name:"edit",
         svg: (size, color, height) => `<svg width="${size?size:'30'}px" height="${height?height:size?size:'25'}px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path fill-rule="evenodd" clip-rule="evenodd" d="M20.848 1.879a3 3 0 0 0-4.243 0L2.447 16.036a3 3 0 0 0-.82 1.533l-.587 2.936a2 2 0 0 0 2.353 2.353l2.936-.587a3 3 0 0 0 1.533-.82L22.019 7.293a3 3 0 0 0 0-4.243zm-2.829 1.414a1 1 0 0 1 1.415 0l1.171 1.171a1 1 0 0 1 0 1.415L17.933 8.55l-2.585-2.586zm-4.086 4.086L3.862 17.45a1 1 0 0 0-.274.51l-.587 2.936 2.935-.587a1 1 0 0 0 .511-.274L16.52 9.964z" fill="${color?color:'#96c703'}"/></svg>`
+    },
+    {
+        name:"custom-loader",
+        svg: (size) => `<div class="frame"> <div class="note-page"> <div class="line l1"></div> <div class="line l2"></div><div class="line l3"></div><div class="pen"><div class="pen-body"></div><div class="pen-tip"></div></div></div> </div>`
+    },
+    {
+        name: "more", 
+        svg: (size=171, color='#96c703') => `<svg width="${size*(54/171)}" height="${size}" viewBox="9.2 3.2 5.6 17.6" fill="${color}" xmlns="http://www.w3.org/2000/svg" stroke="${color}"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><title/><path d="M12 16a2 2 0 1 1-2 2 2 2 0 0 1 2-2ZM10 6a2 2 0 1 0 2-2 2 2 0 0 0-2 2Zm0 6a2 2 0 1 0 2-2 2 2 0 0 0-2 2Z"/></svg>`
     }
 ]
 

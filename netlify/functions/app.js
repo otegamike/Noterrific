@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const serverless = require("serverless-http");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ObjectId } =  require("mongodb");
-const { fs } = require("fs");
+const fs  = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -92,7 +92,9 @@ const verifyAccessToken = (token) => {
 
 }
 
-const verifyToken = (accesstoken, refreshtoken) => {
+
+
+const verifyToken = async(accesstoken, refreshtoken) => {
 
     console.log("verifying access token");
 
@@ -122,6 +124,12 @@ const verifyToken = (accesstoken, refreshtoken) => {
 
             const decoded = jwt.verify(refreshtoken, process.env.REFRESH_TOKEN_SECRET);
             const { id: userId, username } = decoded;
+            const validInDb = await checkDbRefreshToken(userId , refreshtoken) ;
+            console.log("Db refresh token valid:", validInDb) ;
+            if (!validInDb) {
+                
+                return { message: "Refresh token not recognized, log in again", validated: false };
+            }
 
             console.log("refresh token valid, creating new access token");
 
@@ -172,6 +180,24 @@ async function connectToDatabase() {
     
 }
 
+const checkDbRefreshToken = async(id , refreshtoken) => { 
+    console.log("checking Db for refreshToken") ;
+    const {db} = await connectToDatabase() ;
+    const user = db.collection("Users");
+    const oid = ObjectId.createFromHexString(id);
+    console.log("checking for user id:", oid) ;
+
+    const foundUser = await user.findOne({ _id: oid });
+    console.log("found user:", foundUser.username) ;
+    if (foundUser.refreshToken === refreshtoken) {
+        console.log(" token found in database");
+        return true;
+    } else {
+        console.log(" token NOT found in database");
+        return false;
+    }
+}
+
 router.get(["/notebook", "/note"] , async(req , res) => {
     res.sendFile(path.join(__dirname, "../../public/index.html"))
 
@@ -202,6 +228,10 @@ router.post("/register", async (req , res) => {
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
+        });
+
+        res.cookie("has_auth", "true", {
+            httpOnly: false, maxAge: 14 * 24 * 60 * 60 * 1000
         });
 
         res.status(201).json( 
@@ -239,6 +269,10 @@ router.post("/login" , async (req , res) => {
 
                 res.cookie("refreshToken", refreshToken, {
                     httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
+                });
+
+                res.cookie("has_auth", "true", {
+                    httpOnly: false, maxAge: 14 * 24 * 60 * 60 * 1000
                 });
                 
                 res.status(200).json({status: true, message :"Correct password", username});
@@ -296,7 +330,7 @@ router.post("/getNotes", async (req, res) => {
     let userId;
     let USER;
 
-    const validateUser = verifyToken(accessToken,refreshToken) ;
+    const validateUser = await verifyToken(accessToken,refreshToken) ;
     
     if (validateUser.validated) {
         accessToken = validateUser.accessToken;
@@ -337,7 +371,7 @@ router.post("/delNote" , async (req , res) => {
     let userId;
     let USER;
 
-    const validateUser = verifyToken(accessToken,refreshToken) ;
+    const validateUser = await verifyToken(accessToken,refreshToken) ;
     if (validateUser.validated) {
         accessToken = validateUser.accessToken;
         userId = validateUser.userId;
@@ -382,7 +416,7 @@ router.post("/editNote" , async (req , res) => {
     let userId;
     let USER;
 
-    const validateUser = verifyToken(accessToken,refreshToken) ;
+    const validateUser = await verifyToken(accessToken,refreshToken) ;
     if (validateUser.validated) {
         accessToken = validateUser.accessToken;
         userId = validateUser.userId;
@@ -468,5 +502,43 @@ router.post("/newNote" , async (req , res) => {
 
     
 }); 
+
+router.post("/logout", async (req, res) => { 
+
+    let accessToken = req.body.ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+    
+    const validateUser = await verifyToken(accessToken,refreshToken) ;
+    if (!validateUser.validated) {
+        console.log(validateUser.message)
+        res.status(403).json(validateUser);
+        return;
+    }
+
+    try {
+
+        const {db} = await connectToDatabase() ;
+        const users = db.collection("Users");
+        const oid = ObjectId.createFromHexString(validateUser.userId);
+        console.log("clearing refresh token for user id:", oid) ;
+
+        const updated = await users.updateOne(
+            { _id: oid } , {$set: {refreshToken: null}} 
+        ) ;
+        console.log("refresh token cleared in database") ;
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+        return
+    }
+
+    res.clearCookie("refreshToken");
+    res.clearCookie("has_auth");
+    res.status(200).json({ message: "Logged out successfully" });
+
+
+});
+
 app.use("/.netlify/functions/app", router);
 module.exports.handler = serverless(app);
