@@ -53,7 +53,35 @@ const errObbj = (errText) => {
         
     }, 4000);
 
-}
+} 
+
+const generateDeviceId = () => {
+  let deviceId = localStorage.getItem("deviceId");
+
+  if (!deviceId) {
+    if (window.crypto && window.crypto.randomUUID) {
+      deviceId = window.crypto.randomUUID();
+    } else {
+      // Fallback for older browsers
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+
+      // RFC 4122 v4
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+      deviceId = [...bytes].map((b, i) =>
+        (i === 4 || i === 6 || i === 8 || i === 10 ? "-" : "") +
+        b.toString(16).padStart(2, "0")
+      ).join("");
+    }
+
+    localStorage.setItem("deviceId", deviceId);
+  }
+
+  return deviceId;
+};
+
 
 
 const checkAvailability = async (input,alertbox) => {
@@ -192,7 +220,7 @@ const matchPass = () => {
 
 
 const LogIn = async () => {
-
+    const deviceId = generateDeviceId() ;
     const usernameEl = document.getElementById("username");
     const passwordEl= document.getElementById("password");
     const usernameCase = usernameEl.value ;
@@ -212,22 +240,26 @@ const LogIn = async () => {
         const res = await fetch(("/.netlify/functions/app/login") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
-            body: JSON.stringify({username, password}) 
+            body: JSON.stringify({username, password, deviceId}) 
         })
 
         if (!res.ok) {
             const errTxt = "Can't connect to server. Please try again.";
             submitEl.innerHTML = "submit";
             errObbj(errTxt); 
+
         } else {
             const result = await res.json();
+
             if (!result.status) {
                 errObbj(result.message) ;
                 submitEl.innerHTML = "submit";
                 return;
+
             } else {
                 sessionStorage.setItem("username", result.username);
                 window.location.href = "/notes.html";
+
             }
             
         }
@@ -238,7 +270,7 @@ const LogIn = async () => {
 }
 
 const Register = async () => {
-    
+    const deviceId = generateDeviceId() ;
     const usernameEl = document.getElementById("username");
     const passwordEl= document.getElementById("password");
     const emailEl= document.getElementById("email");
@@ -262,7 +294,7 @@ const Register = async () => {
         const res = await fetch(("/.netlify/functions/app/register") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
-            body: JSON.stringify({username, email , password}) 
+            body: JSON.stringify({username, email , password, deviceId}) 
         })
 
         if (!res.ok) {
@@ -270,6 +302,11 @@ const Register = async () => {
             errObbj(errTxt); 
         } else {
             const result = await res.json();
+            if (!result.status) {
+                errObbj(result.message) ;
+                submitEl.innerHTML = "submit";
+                return;
+            }
             sessionStorage.setItem("username", result.username);
             window.location.href = "/notes.html";
         }

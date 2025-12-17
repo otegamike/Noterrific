@@ -1,20 +1,19 @@
 {
 	"geolocation": {
 		"data": {
-			"city": "London",
+			"city": "Benin City",
 			"country": {
-				"code": "GB",
-				"name": "United Kingdom"
+				"code": "NG",
+				"name": "Nigeria"
 			},
 			"subdivision": {
-				"code": "ENG",
-				"name": "England"
+				"code": "ED",
+				"name": "Edo State"
 			},
-			"timezone": "Europe/London",
-			"latitude": 51.5081,
-			"longitude": -0.1278,
-			"postalCode": "SW1V"
+			"timezone": "Africa/Lagos",
+			"latitude": 6.3332,
+			"longitude": 5.6238
 		},
-		"timestamp": 1765382810763
+		"timestamp": 1765963590249
 	}
 }

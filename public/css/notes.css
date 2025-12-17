@@ -56,7 +56,9 @@ body {
     box-sizing: border-box;
     display: flex;
     padding: 10px;
-    position: relative;
+    position: sticky;
+    left: 0px;
+    top: 0px;
     width: 100%;
     height: 80px;
     align-items: center;
@@ -297,9 +299,9 @@ a {
 .bottomline {
     background: rgba(240, 250, 212, 0.8);
     border-bottom: 1px solid rgba(0, 0, 0, 0.5);
-    z-index: 4;
-
+    z-index: 6;
 }
+
 .logboxCon {
     width: 100%;
     height: 100%;
@@ -656,8 +658,6 @@ li {
     position: relative ;
     width: 90vw;
     height: fit-content;
-    max-width: 400px;
-    min-width: 90vw;
     background-color: var(--colorligher);
     display: flex;
     flex-direction: column;
@@ -665,12 +665,63 @@ li {
     padding: 15px;
     padding-bottom: 10px;
     border-radius: 10px;
-    cursor: pointer;
-    max-height: 300px;
     overflow: hidden;
     opacity: 1;
     transform: translateX(0%);
-    transition: transform 0.6s ease, opacity 0.6s ease, background-color 0.5s ease;
+    transition: transform 0.6s ease, opacity 0.6s ease, background-color 0.5s ease, left 0.8s ease, right 0.8s ease, height 0.8s ease;
+}
+
+.list-boundary {
+    max-width: 400px;
+    min-width: 90vw;
+    max-height: 300px;
+}
+
+.expand {
+    position: fixed;
+    left : 0px;
+    top: 0px ;
+    height: 80vh ;
+    z-index: 1000;
+
+}
+
+/* Styles used by the JS clone expansion animation */
+.note-expanding-clone {
+    background: var(--colorligher);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    overflow: auto;
+    padding: 16px;
+    transition: all 360ms cubic-bezier(.2,.8,.2,1);
+}
+
+.note-expanding-clone.expanded {
+    /* final fullscreen appearance */
+    width: 100vw ;
+    height: 100vh ;
+    top: 0 ;
+    left: 0 ;
+    border-radius: 0 ;
+}
+
+.note-expanding-clone .clone-close {
+    position: fixed;
+    right: 18px;
+    top: 14px;
+    z-index: 2100;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.note-expanding-clone .clone-close:hover {
+    background: rgba(0,0,0,0.8);
 }
 
 .listedit {
@@ -898,14 +949,37 @@ textarea:focus {
     display: flex;
     top: -5px;
     right: -5px;
-    background-color: #edf9cc;
     height: 32px;
     box-sizing: border-box;
     opacity: 0;
+    overflow-x: hidden;
     transition: opacity 0.5s, background-color 0.5s;
 
 }
 
+.action-btns {
+    display: flex;
+    flex-direction: row;
+    width: fit-content;
+    border-radius: 8px;
+    background-color: #edf9cc;
+    transform: translateX(60%);
+    transition: transform 0.5s ease;
+    
+}
+
+.hidable-action-btns {
+    display: flex;
+    width: 100px;
+    flex-direction: row;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.hidable {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
 
 .floatedit {
     background-color: var(--editmode);
@@ -924,8 +998,41 @@ textarea:focus {
     justify-content: center;
     align-items: center;
     padding-top: 1px;
-    
+    cursor: pointer;
+}
 
+.floatbutton:not(.hidable-action-btns .floatbutton):not(.floatbutton ~ .floatbutton) {
+    margin-left: 3px;
+}
+
+.morebutton {
+    display: flex;
+    width: 15px;
+    height: 30px;
+    margin-left: 6px;
+    box-sizing: border-box;
+    background-color: #edf9cc;
+    justify-content: center;
+    align-items: center;
+    padding-top: 1px;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.float:has(.morebutton:hover) .action-btns {
+    transform: translateX(18%);
+}
+
+.float:has(.morebutton:hover) .hidable-action-btns {
+    opacity: 1;
+}
+
+.action-btns:has(.hidable-action-btns:hover) {
+    transform: translateX(18%);
+}
+
+.hidable-action-btns:hover {
+    opacity: 1;
 }
 
 .usernameBold {
@@ -1070,15 +1177,17 @@ a {
 
 .alrtCon {
     position: fixed;
-    left:50%;
     bottom:40px;
-    display: flex;
-    justify-content: center;
+    width: 100%;
     z-index: 5;
-    transform: translate(-50%);
 }
 
 .alrt {
+    position: fixed;
+    left:50%;
+    bottom:40px;
+    
+    max-width: min(70%,450px);
     box-sizing: border-box;
     padding: 8px 10px;
     background-color: rgb(247, 76, 76);
@@ -1087,7 +1196,12 @@ a {
     font-weight: bold;
     font-size: small;
     opacity: 0;
+    transform: translate(-50%);
     transition: opacity 0.5s ease-in-out;
+}
+
+.alert-success {
+    background-color: hsl(105 100% 40% / 0.9);
 }
 
 .disabled {
@@ -1298,9 +1412,12 @@ a {
         min-width: 400px;
     }
 
-    .list {
-        min-width: 400px;
+    list {
         height: 100%;
+    }
+
+    .list-boundary {
+        min-width: 400px;
     }
 
     .contentCon{

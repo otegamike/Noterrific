@@ -6,6 +6,7 @@ const serverless = require("serverless-http");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ObjectId } =  require("mongodb");
 const fs  = require("fs");
+const logEvent = require("./logs/devLogs") ;
 require("dotenv").config();
 
 const app = express();
@@ -24,23 +25,75 @@ const MONGO_URI = process.env.CONNECTIONSTRING ;
 let cachedClient = null ;
 let cachedDb = null ;
 
-function createTokens(user) {
-    const accessToken = jwt.sign(
-        {id: user.id, username: user.username},
-        process.env.ACCESS_TOKEN_SECRET,
-        {expiresIn: "15m"}
-    );
+function createTokens(user, tokenType) {
+    // tokenType can be "access" or "refresh" or undefined (both)
+    let refreshToken, accessToken;
 
-    const refreshToken = jwt.sign(
-        {id: user.id , username: user.username },
-        process.env.REFRESH_TOKEN_SECRET,
-        {expiresIn: "14d"}
-    )
+    if (tokenType !== "refresh") {
+        accessToken = jwt.sign(
+            user,
+            process.env.ACCESS_TOKEN_SECRET,
+            {expiresIn: "15m"}
+        );
+        
+    }
 
-    console.log("tokens created")
+    if (tokenType !== "access") {
+        refreshToken = jwt.sign(
+            user,
+            process.env.REFRESH_TOKEN_SECRET,
+            {expiresIn: "14d"}
+        );
+        
+    }
     return {refreshToken, accessToken}
 
 }
+
+const decodeToken = (token, type) => {
+    let secret = (type === "access") ? process.env.ACCESS_TOKEN_SECRET : process.env.REFRESH_TOKEN_SECRET;
+
+    try {
+        const payload = jwt.verify(token, secret);
+        return {payload, decoded: true, status: "success", message: `${type} token decoded`};
+        
+    } catch (err) {
+        console.error(`Error decoding ${type} token:`, err, err.message);
+        return {decoded: false, message: `Couldn't decode ${type} token`, status: "failed"};
+
+    }
+}
+
+
+const createRefreshTokenArray = (dbRefreshTokenArray, newTokenObj, oldRefreshToken) => {
+    console.log("creating/updating refresh token array")
+    let refreshTokensArray = [];
+    let deviceId = newTokenObj.deviceId
+
+    if (dbRefreshTokenArray) {
+        refreshTokensArray = dbRefreshTokenArray.filter((tokenObj) => tokenObj.deviceId !== deviceId);
+        
+        if ( refreshTokensArray.length >= 5) {
+            refreshTokensArray.sort(
+                (a, b) =>  new Date(a.createdAt) - new Date(b.createdAt)
+            );
+            refreshTokensArray.shift(); // remove oldest
+
+        }
+        refreshTokensArray.push(newTokenObj) ;
+
+    } else if (oldRefreshToken) {
+        refreshTokensArray = [ {refreshToken: oldRefreshToken, deviceId: "old", createdAt: new Date() }, newTokenObj ] ;
+         
+    } else {
+        refreshTokensArray = [ newTokenObj ] ;
+        
+    }
+   
+    return refreshTokensArray;
+    
+}
+
 
 const newAccessToken = (refreshToken) => {
     console.log("creating new accesstoken");
@@ -126,11 +179,12 @@ const verifyToken = async(accesstoken, refreshtoken) => {
             const { id: userId, username } = decoded;
             const validInDb = await checkDbRefreshToken(userId , refreshtoken) ;
             console.log("Db refresh token valid:", validInDb) ;
-            if (!validInDb) {
-                
+            if (!validInDb.tokenFoundInDb) {
+                if (!validInDb.dbConnected) {
+                    return {message: "couldn't connect to database", validated: false , dbConnected: false, dbStatus: "failed" } ;
+                }
                 return { message: "Refresh token not recognized, log in again", validated: false };
             }
-
             console.log("refresh token valid, creating new access token");
 
             const accessToken = jwt.sign(
@@ -158,44 +212,60 @@ const verifyToken = async(accesstoken, refreshtoken) => {
 
 async function connectToDatabase() {
     if (cachedClient && cachedDb ) {
-        return { client : cachedClient , db : cachedDb };
+        return {dbConnected: true, client : cachedClient , db : cachedDb };
 
     }
     if (!MONGO_URI) { 
         throw new Error ("Missing CONNECTION env var") ;
     }
-    const client =  new MongoClient(MONGO_URI);
 
+    const client =  new MongoClient(MONGO_URI);
     try {
         const connect = await client.connect(); 
         if (connect) console.log("connected to Database");
         const db = client.db("Note") ;
         cachedClient = client ;
         cachedDb = db ;
-        return { client: cachedClient , db: cachedDb} ;
+        return { dbConnected: true, client: cachedClient , db: cachedDb} ;
     } catch (err) {
         console.error(`error: ${err.message} ; Could not connect to mongoDb `)
-        return;
+        return {dbConnected: false, message: "Could not connect to DataBase"} ;
     }
     
 }
 
 const checkDbRefreshToken = async(id , refreshtoken) => { 
-    console.log("checking Db for refreshToken") ;
-    const {db} = await connectToDatabase() ;
+    const {db, dbConnected} = await connectToDatabase() ;
+
+    if (!dbConnected) {
+        console.log("Database connection error while checking refresh token") ;
+        return {dbConnected: false, tokenFoundInDb: false} ;
+    }
+
     const user = db.collection("Users");
     const oid = ObjectId.createFromHexString(id);
-    console.log("checking for user id:", oid) ;
 
     const foundUser = await user.findOne({ _id: oid });
-    console.log("found user:", foundUser.username) ;
-    if (foundUser.refreshToken === refreshtoken) {
+   
+    if (foundUser?.refreshTokensArray) {
+        
+        const refreshTokensArray = foundUser.refreshTokensArray;
+        const tokenExists = refreshTokensArray.find((tokenObj) => tokenObj.refreshToken === refreshtoken) ;
+        if (tokenExists) {
+            console.log(" token found in database"); 
+            return {dbConnected: true, tokenFoundInDb: true};
+        }
+
+    } else if (foundUser.refreshToken === refreshtoken) {
         console.log(" token found in database");
-        return true;
+        return {dbConnected: true, tokenFoundInDb: true};
+
     } else {
         console.log(" token NOT found in database");
-        return false;
+        return {dbConnected: true, tokenFoundInDb: false};
+
     }
+    
 }
 
 router.get(["/notebook", "/note"] , async(req , res) => {
@@ -205,7 +275,7 @@ router.get(["/notebook", "/note"] , async(req , res) => {
 
 router.post("/register", async (req , res) => {
 
-    const {username, email, password} = req.body;
+    const {username, email, password, deviceId} = req.body;
 
     try {
         const salt = await bcrypt.genSalt();
@@ -216,14 +286,31 @@ router.post("/register", async (req , res) => {
         const {db} = await connectToDatabase();
         const users = db.collection("Users");
 
+        const checkUser = await users.findOne({
+                                                $or:[ {username}, {email}  ] 
+                                            }) ;
+        if (checkUser) {
+            res.status(200).json({status: false, message :"Username or Email already in use"});
+            console.log("username or email already in use");
+            return;
+        }
+
         const response = await users.insertOne({username, email, hashedpassword});
 
         const userId = response.insertedId.toString();
         const userObject = {id: userId, username: username } ;
 
-        const { accessToken , refreshToken } = createTokens(userObject);
+        //creating refresh token and refreshtoken object to store in db
+        const { refreshToken } = createTokens(userObject, "refresh");
+        const createdAt = new Date() ;
+        const newRefreshToken = {refreshToken, 
+                                 deviceId, 
+                                 createdAt: createdAt 
+                                };
+
+        const refreshTokensArray = createRefreshTokenArray(null, newRefreshToken, null) ;                        
         const updated = await users.updateOne(
-            {username: username } , {$set: {refreshToken}} 
+            {username: username } , {$set: {refreshTokensArray}} 
         ) ;
 
         res.cookie("refreshToken", refreshToken, {
@@ -235,7 +322,7 @@ router.post("/register", async (req , res) => {
         });
 
         res.status(201).json( 
-           {status: true, message :"user profile created", username, accessToken}
+           {status: true, message :"user profile created", username}
         );
     } catch (err) {
         console.error("Error in registration", err.message) ;
@@ -246,7 +333,7 @@ router.post("/register", async (req , res) => {
 })
 
 router.post("/login" , async (req , res) => {
-    const {username , password} = req.body ;
+    const {username , password, deviceId} = req.body ;
 
     const {db} = await connectToDatabase();
     const users = db.collection("Users") ;
@@ -257,15 +344,34 @@ router.post("/login" , async (req , res) => {
         return;
     } else {
         try {
+            console.log("comparing passwords");
             const confirm = await bcrypt.compare(password, user.hashedpassword);
+
             if (confirm) {
                 const userId = user._id.toString();
                 const userObject = {id: userId, username} ;
+
+                //create new refreshtoken
+                const { refreshToken } = createTokens(userObject, "refresh");
+               
+                // add to refreshtoken array;
+                const createdAt = new Date() ;
+                const newRefreshTokenObj = {refreshToken, 
+                                         deviceId,
+                                         createdAt: createdAt 
+                                        };
+
+                // Add new refreshToken obj to refreshtoken array
+                const refreshTokensArray = createRefreshTokenArray(user.refreshTokensArray, newRefreshTokenObj, user.refreshToken) ;
                 
-                const { accessToken , refreshToken } = createTokens(userObject);
+                // Update in database
+                const updateFields = { refreshTokensArray };
+                if (user.refreshToken) { updateFields.refreshToken = null; }
                 const updated = await users.updateOne(
-                    {username: username } , {$set: {refreshToken}} 
+                    {username: username } , {$set: updateFields} 
                 ) ;
+
+                console.log("refresh token(s) updated in database", updated) ;
 
                 res.cookie("refreshToken", refreshToken, {
                     httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
@@ -274,8 +380,12 @@ router.post("/login" , async (req , res) => {
                 res.cookie("has_auth", "true", {
                     httpOnly: false, maxAge: 14 * 24 * 60 * 60 * 1000
                 });
+
+                res.cookie("createdAt", createdAt, {
+                    httpOnly: false, maxAge: 14 * 24 * 60 * 60 * 1000
+                });
                 
-                res.status(200).json({status: true, message :"Correct password", username});
+                res.status(200).json({status: true, message :"Correct password", username, deviceId});
 
             } else {
                 
@@ -284,8 +394,9 @@ router.post("/login" , async (req , res) => {
                 return;
 
             }
+
         } catch (err) {
-            console.error("Bcrypt compare failed:", err.message);
+            console.error("Error logging in", err.message);
             res.status(500).json({error: "Something went wrong, please try again later."});
         }
         
@@ -338,7 +449,11 @@ router.post("/getNotes", async (req, res) => {
         USER = validateUser.username;
 
     } else if (!validateUser.validated) {
-        console.log(validateUser.message)
+        console.log(validateUser.message);
+        if (validateUser.dbStatus==="failed") {
+            res.status(503).json(validateUser);
+            return;
+        }
         res.status(403).json(validateUser);
         return;
     }
@@ -506,6 +621,7 @@ router.post("/newNote" , async (req , res) => {
 router.post("/logout", async (req, res) => { 
 
     let accessToken = req.body.ACCESSTOKEN;
+    const deviceId = req.body.deviceId;
     const refreshToken = req.cookies.refreshToken;
     
     const validateUser = await verifyToken(accessToken,refreshToken) ;
@@ -515,16 +631,31 @@ router.post("/logout", async (req, res) => {
         return;
     }
 
+   
+
     try {
 
         const {db} = await connectToDatabase() ;
         const users = db.collection("Users");
         const oid = ObjectId.createFromHexString(validateUser.userId);
-        console.log("clearing refresh token for user id:", oid) ;
+        console.log("clearing refresh token for user id:") ;
 
-        const updated = await users.updateOne(
-            { _id: oid } , {$set: {refreshToken: null}} 
-        ) ;
+        const update = await users.updateOne(
+            { _id: oid },
+            { $pull: { refreshTokensArray: { deviceId } } }
+        );
+
+        console.log(update);
+
+        // const user = await users.findOne( { _id: oid } ) ;
+        // if (user?.refreshTokensArray) {
+        //     const tokensArray = user.refreshTokensArray;
+        //     const refreshTokensArray = tokensArray.filter((array) => array.deviceId !== deviceId) ;
+
+        //     const updated = await users.updateOne(
+        //         { _id: oid } , {$set: {refreshTokensArray}} 
+        //     ) ;
+        // }
         console.log("refresh token cleared in database") ;
 
     } catch (err) {

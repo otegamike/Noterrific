@@ -1,5 +1,6 @@
 import defaultNote from "/js/defaultNotes.js";
 import { geticon, icons } from "/js/svg.js";
+import { toggleExpand, collapseClone } from "/js/expandCard.js";
 
 
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
@@ -77,40 +78,41 @@ const ShowDisplayName = (uname) => {
 window.onload = ShowDisplayName();
 
 const loaddate= (date) => {
-        const dt = new Date(date);
-        const now = new Date();
-        let newDate = "";
+    const dt = new Date(date);
+    const now = new Date();
+    let newDate = "";
 
-        const datediff = now - dt;
-        const diffSec = Math.floor(datediff/1000) ;
-        const diffMin = Math.floor(diffSec/60) ;
-        const diffHr = Math.floor(diffMin/60) ;
-        const diffDay = Math.floor(diffHr/24) ;
-        const diffWk = Math.floor(diffDay/7) ;
+    const datediff = now - dt;
+    const diffSec = Math.floor(datediff/1000) ;
+    const diffMin = Math.floor(diffSec/60) ;
+    const diffHr = Math.floor(diffMin/60) ;
+    const diffDay = Math.floor(diffHr/24) ;
+    const diffWk = Math.floor(diffDay/7) ;
 
-        if (diffWk>=4) {
-            const option = { month: "short" , year : "numeric"} ;
-            newDate = dt.toLocaleDateString("en-Us" , option) ;
-        } else if (diffWk<4&&diffWk>0) {
-            newDate = `${diffWk} weeks ago` ;
-        } else if (diffDay<7&&diffDay>0) {
-            newDate = `${diffDay} days ago` ;
-           if (diffDay === 1)  {newDate="yesterday" ; }
-        } else if (diffHr>0) {
-            newDate = `${diffHr} hours ago`
-        } else if (diffMin>0) {
-            newDate = `${diffMin} mins ago` ;
-            if (diffMin === 1)  {newDate="just now" ; }
-        } else if (diffSec>=0) {
-            newDate = `just now`
-        }
+    if (diffWk>=4) {
+        const option = { month: "short" , year : "numeric"} ;
+        newDate = dt.toLocaleDateString("en-Us" , option) ;
+    } else if (diffWk<4&&diffWk>0) {
+        newDate = `${diffWk} weeks ago` ;
+    } else if (diffDay<7&&diffDay>0) {
+        newDate = `${diffDay} days ago` ;
+        if (diffDay === 1)  {newDate="yesterday" ; }
+    } else if (diffHr>0) {
+        newDate = `${diffHr} hours ago`
+    } else if (diffMin>0) {
+        newDate = `${diffMin} mins ago` ;
+        if (diffMin === 1)  {newDate="just now" ; }
+    } else if (diffSec>=0) {
+        newDate = `just now`
+    }
 
 
-        const d = `<div class="dateCon" id="dateCon"><span class="date" id="date">${newDate}</span></div>` ;
-        return d;
+    const d = `<div class="dateCon" id="dateCon"><span class="date" id="date">${newDate}</span></div>` ;
+    return d;
 
-    };
+};
 
+//___Action Buttons___//
 
 const delBtn = (i) => {
     const delicon = geticon("delete", 25, null, 20.83);
@@ -129,31 +131,97 @@ const delBtn = (i) => {
 
 const editBtn = (i) => {
         const editicon= geticon("edit", 25, null, 20.83);
-        const edit = `<span class="floatbutton" id="edit${i===0?"notAllowed":i}">${editicon}</span>`
+        const edit = `<span class="floatbutton" id="edit${i===0?"notAllowed":i}">${editicon}</span>`;
         return edit;
-}   
+}  
+
+const copyBtn = (i) => {
+    const copyicon= geticon("copy", 25);
+    const copy = `<span class="floatbutton" id="copy${i}">${copyicon}</span>`;
+    return copy;
+}
+
+const expandBtn = (i) => {
+    const expandicon= geticon("expand", 22);
+    const expand = `<span class="floatbutton" id="expand${i}">${expandicon}</span>`;
+    return expand;
+}
+
+const moreBtn = (i) => {
+        const moreicon= geticon("more", 20);
+        const more = `<span class="morebutton" id="more${i}">${moreicon}</span>`;
+        return more;
+}
+
+
+
+const actionBtns = (i, check) => { 
+    //Check if it's a default note by checking create time
+    let delSpan, editSpan, defaultnote;
+    console.log(check);
+
+    if (check) {
+        defaultnote = (check===0)?true:false;
+        const defaultid = `default${i}`; 
+
+        delSpan = `${delBtn(defaultnote?defaultid:i)}`;
+        editSpan = `${editBtn(defaultnote?0:i)}`; 
+        
+    } else {
+        delSpan = `${delBtn(i)}`;
+        editSpan = `${editBtn(i)}`;
+    }
+    console.log(defaultnote);
+
+    const copySpan = `${copyBtn(i)}`;
+    const expandSpan = `${expandBtn(i)}`;
+    const moreSpan = `${moreBtn(i)}`;
+
+    return `<span class="action-btns">${editSpan}${delSpan}<span class="hidable-action-btns">${copySpan}${expandSpan}</span></span>${moreSpan}`;
+};
+
+//___Alert Object___//
     
 const errObbj = (errText) => {
-    const noteEl = document.getElementById("notes");
-    const alrt = `<span class="alrtCon" id="alrtCon"><span class="alrt" id="alrt">x ${errText}</span></span>`;
+    const alertEl = document.getElementById("alrtCon");
+    if (!alertEl) return;
+    const i = alertEl.children.length + 1;
+
+    const alrt = `<div class="alrt" id="alrt${i}">x ${errText}</div>`;
     
-    noteEl.insertAdjacentHTML("afterbegin", alrt);
+    alertEl.insertAdjacentHTML("beforeend", alrt);
 
-    setTimeout(()=> {
-        const alrtEl = document.getElementById("alrt");
-        alrtEl.classList.add("fade-in");
-    }, 10)
+    animateblock(`alrt${i}`,"fade-in","add",10);
 
-    setTimeout(() => {
-        const alrtEl = document.getElementById("alrt");
-        alrtEl.classList.remove("fade-in");
-        alrtEl.classList.add("fade-out");
-        setTimeout(() => {
-            document.getElementById("alrtCon").remove();
-        }, 500);
-        
-    }, 4000);
+    animateblock(`alrt${i}`, "fade-in", "remove", 4000, "delete");
 
+}
+
+const alertObj = (alertText, type="alert-success") => {
+    const alertEl = document.getElementById("alrtCon");
+    if (!alertEl) return;
+    const i = alertEl.children.length + 1;
+
+    const alrt = `<div class="alrt ${type}" id="alrt${i}">${alertText}</div>`;
+    
+    alertEl.insertAdjacentHTML("beforeend", alrt);
+
+    animateblock(`alrt${i}`,"fade-in","add",10);
+
+    animateblock(`alrt${i}`, "fade-in", "remove", 4000, "delete");
+
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    console.log("Copied to clipboard!");
+    return {copied: true}
+    
+  } catch (err) {
+    console.error("Failed to copy:", err);
+    return {copied: false}
+  }
 }
 
 //Animations
@@ -259,28 +327,41 @@ const disableBtn = (toggle , id , disableClass) => {
     }
 };
 
+const editWarning = (id) => {
+    const edId = EDITARRAY.id ;
+    const edContentEl = document.getElementById(`contE${edId}`) ;
+    const len = edContentEl.innerHTML.length ;
+    errObbj("You must finish editing note first");
+    //change background of the note being editted to highlight it 
+    document.documentElement.style.setProperty('--editmode', 'hsl(76deg 50% 70)') ;
+    document.documentElement.style.setProperty('--editmodefocus', 'hsl(76deg 50% 70)') ;
+    //place cursor at the end of edit box
+    edContentEl.focus() ;
+    edContentEl.setSelectionRange(len , len);
+
+    setTimeout(()=> {
+        document.documentElement.style.setProperty('--editmode', 'hsl(76deg 65% 83)') ;
+        document.documentElement.style.setProperty('--editmodefocus', 'hsl(76deg 65% 81)') ;
+    }, 1000) ;
+}
+
 
 const liElement = (liId, liTitle, liContent , liCreateTime , animate ) => { 
 
     //Check if it's a default note by checking create time 
     const defaultnote = (liCreateTime===0)?true:false;
-    const defaultid = `default${liId}`;
-
-    //Create html blocks
     const titlespan = `<span id="tit${liId}" class="bold">${liTitle} </span>`;
-    const delSpan = `${delBtn(defaultnote?defaultid:liId)}`;
-    const editSpan = `${editBtn(defaultnote?0:liId)}`;
      
     const datespan = `<span class="date">${defaultnote?"":loaddate(liCreateTime)}</span>`
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${editSpan}${delSpan}</span></div>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${actionBtns(liId,liCreateTime)}</span></div>`;
     const contentSpan= `<span class="content" id="cont${liId}" >${liContent.replaceAll("\n","<br/>")}</span>`;
     
     const liClass = animate?'listHide':''; 
     const listClass = animate?'offset-right':'';
 
     
-    const list = `<li class="${liClass}" id="nt${liId}"><div class="list ${listClass}" id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
+    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass}" id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
 
     return list ;
 }  
@@ -311,12 +392,13 @@ const saveEdit = (id, title, content, createTime) => {
     listEl.classList.remove("listedit");
 
     const titlespan = `<span id="tit${id}" class="bold">${title}</span>`;
-    const delSpan = `${delBtn(id)}`;
-    const editSpan = `${editBtn(id)}`;
+    // const delSpan = `${delBtn(id)}`;
+    // const editSpan = `${editBtn(id)}`;
+    // const moreSpan = `${moreBtn(id)}`;
      
     const datespan = `<span class="date">${loaddate(createTime)}</span>`
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${id}" class="float">${editSpan}${delSpan}</span></div>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${id}" class="float">${actionBtns(id)}</span></div>`;
     const contentSpan= `<span class="content" id="cont${id}" >${content.replaceAll("\n","<br/>")}</span>`;
 
     
@@ -425,11 +507,21 @@ async function getNotes() {
             noteEl.innerHTML=noteUl;
 
             ShowDisplayName(USER);
+            // Animate loader out
+            animateblock("loadCon","fade-out","add", 250, "delete");
+            // load notes 
             animateblock("noteUl","offset-right","remove", 500);
 
         } else if (res.status===403 && !data.validated ) {
             reLogin()
             return;
+        }  else if (res.status===503 && !data.validated ) {
+             console.error(err.message);
+            const reload = `<div class="reload"><span class="load"><b>Couldn't connect to server</b> <span id="reload" style="color: var(--colordarker); cursor: pointer;" >try again</span></span></div>`
+            noteEl.innerHTML=reload;
+            animateblock("loadCon","fade-out","add", 250, "delete");
+
+            errObbj("Network Error. Try again.");
         } else {
             ACCESSTOKEN = data.accessToken;
             USER = data.USER ;
@@ -451,6 +543,9 @@ async function getNotes() {
         
         if (err.name === 'AbortError') {
             errObbj('Request timed out. Please try again.');
+            // Animate loader out
+            animateblock("loadCon","fade-out","add", 250, "delete");
+            return;
         }
 
          console.error(err.message);
@@ -823,7 +918,7 @@ const logOut = async() => {
 // Add event listeners for delete, edit, reload, and formatTitle
 
 // Delegate click events for delete, edit, and reload buttons
-document.addEventListener("click", function (e) {
+document.addEventListener("click", async function (e) {
     // Delete button
     if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("del")) {
         if (e.target.closest(".floatbutton").classList.contains("disabled")) {
@@ -843,38 +938,46 @@ document.addEventListener("click", function (e) {
         
         if (e.target.closest(".floatbutton").classList.contains("disabled")) return;
         const id = e.target.closest(".floatbutton").id.replace("edit", "");
+
         
         // check if an element is already being edited and prompt the user to finish editing it 
-        if (EDITARRAY) { 
-            const edId = EDITARRAY.id ;
-            const edContentEl = document.getElementById(`contE${edId}`) ;
-            const len = edContentEl.innerHTML.length ;
-            errObbj("You must finish editing note first");
-            //change background of the note being editted to highlight it 
-            document.documentElement.style.setProperty('--editmode', 'hsl(76deg 50% 70)') ;
-            document.documentElement.style.setProperty('--editmodefocus', 'hsl(76deg 50% 70)') ;
-            //place cursor at the end of edit box
-            edContentEl.focus() ;
-            edContentEl.setSelectionRange(len , len);
+        if (EDITARRAY) return editWarning(id);
 
-            setTimeout(()=> {
-                document.documentElement.style.setProperty('--editmode', 'hsl(76deg 65% 83)') ;
-                document.documentElement.style.setProperty('--editmodefocus', 'hsl(76deg 65% 81)') ;
-            }, 1000) ;
+        alertObj(id);
+        
+        editMode(id);
+        
+    }
 
-            // change color back after a timeout 
-
-
-
+    // Copy button
+    if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("copy")) {
+        const id = e.target.closest(".floatbutton").id.replace("copy", "");
+        const titleEl = document.getElementById("tit"+id);
+        const contEl =  document.getElementById("cont"+id);
+        if (!titleEl||!contEl) {
+            errObbj("Encountered an error while trying to copy. reload and try again") ;
             return;
         }
-        if (!isNaN(id)) {
-            console.log("editmode activated") ;
-            editMode(id);
-        } else {
-            editMode(id);
+        const copyText = `${titleEl.innerHTML}\n${contEl.innerHTML.replaceAll("<br>", "\n")}`;
+        const copy = await copyToClipboard(copyText.trim()) ;
+        if (!copy.copied) {
+            errObbj("Encountered an error while trying to copy. reload and try again") ;
+            return;
         }
+
+        alertObj(`Copied to clipboard`);
     }
+
+    // Expand button
+    if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("expand")) {
+        const id = e.target.closest(".floatbutton").id;
+        let i = id.replace("expand", "");
+        i = (i.charAt(0)==="X")?i.replace("X", ""):i ;
+        await toggleExpand(i);
+
+        alertObj(`you clicked ${id} i = ${i}`);
+    }
+
     // Reload button
     if (e.target.id === "reload" || e.target.closest("#reload")) {
         getNotes();
