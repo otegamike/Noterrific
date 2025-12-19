@@ -7,7 +7,7 @@ export async function toggleExpand(i) {
     const existing = document.querySelector(`.note-expanding-clone[data-id="${i}"]`);
     if (existing) {
         console.log("close expand");
-        collapseClone(existing, listEl);
+        collapseNote(`expandedList${i}`);
         return;
     }
 
@@ -15,6 +15,7 @@ export async function toggleExpand(i) {
 
     // Clone node so original stays in-place (no layout shifts)
     const clone = listEl.cloneNode(true);
+    clone.id = `expandedList${i}`;
     clone.classList.add('note-expanding-clone');
     clone.classList.remove('list-boundary');
     clone.setAttribute('data-id', String(i));
@@ -72,14 +73,14 @@ export async function toggleExpand(i) {
     // Close handlers
     const onClose = (ev) => {
         ev.stopPropagation();
-        collapseClone(clone, listEl);
+        collapseNote(`expandedList${i}`);
     };
 
     // closeBtn.addEventListener('click', onClose);
 
     // also close on ESC
     const onKey = (ev) => {
-        if (ev.key === 'Escape') collapseClone(clone, listEl);
+        if (ev.key === 'Escape') collapseNote(`expandedList${i}`);
     };
     document.addEventListener('keydown', onKey, { once: true });
 
@@ -88,97 +89,23 @@ export async function toggleExpand(i) {
         // ignore clicks on inner actionable buttons (floatbutton etc)
         if (ev.target.closest('.floatbutton') || ev.target.closest('.clone-close')) return;
         // collapse only when clicking the empty area of clone (not inside actionable content)
-        if (ev.target === clone) collapseClone(clone, listEl);
+        if (ev.target === clone) collapseNote(`expandedList${i}`);
     });
 
 }
 
-// export async function toggleExpand(i) {
-//     const listEl = document.getElementById(`list${i}`);
-//     if (!listEl) return;
 
-//     // If already expanded (we'll mark clones with data-expanded)
-//     const existing = document.querySelector(`.note-expanding-clone[data-id="${i}"]`);
-//     if (existing) {
-//         // collapse
-//         collapseClone(existing, listEl);
-//         return;
-//     }
+export async function collapseNote(id) {
+    // Return false if the required elements don't exist
+    const i = id.replace(/\D/g, "");
+    const clone = document.querySelector(`#${id}`);
+    const origListEl = document.querySelector(`#list${i}`);
 
-//     const rect = listEl.getBoundingClientRect();
-
-//     // Clone node so original stays in-place (no layout shifts)
-//     const clone = listEl.cloneNode(true);
-//     clone.classList.add('note-expanding-clone');
-//     clone.setAttribute('data-id', String(i));
-
-//     // initial fixed positioning to match original card
-//     clone.style.position = 'fixed';
-//     clone.style.top = rect.top + 'px';
-//     clone.style.left = rect.left + 'px';
-//     clone.style.width = rect.width + 'px';
-//     clone.style.height = rect.height + 'px';
-//     clone.style.margin = '0';
-//     clone.style.zIndex = 2000;
-//     clone.style.boxSizing = 'border-box';
-//     clone.style.transition = 'all 360ms cubic-bezier(.2,.8,.2,1)';
-//     clone.style.borderRadius = window.getComputedStyle(listEl).borderRadius || '10px';
-
-//     // Add a close control
-//     // const closeBtn = document.createElement('button');
-//     // closeBtn.className = 'clone-close';
-//     // closeBtn.innerText = '×';
-//     // clone.appendChild(closeBtn);
-
-//     document.body.appendChild(clone);
-
-//     // hide original content visually (but keep layout)
-//     listEl.style.visibility = 'hidden';
-
-//     // force reflow then expand to fullscreen
-//     requestAnimationFrame(() => {
-//         clone.style.top = '90px';
-//         clone.style.left = '10px';
-//         // clone.style.transform = 'translateX(-50%)';
-//         clone.style.width = '85vw';
-//         clone.style.height = '85vh';
-//         clone.style.style.maxHeight = '85vh';
-//         clone.style.style.maxWidth = '90vw';
-//         clone.style.borderRadius = '0';
-//         clone.classList.add('expanded');
-//     });
-
-//     // Close handlers
-//     const onClose = (ev) => {
-//         ev.stopPropagation();
-//         collapseClone(clone, listEl);
-//     };
-
-//     closeBtn.addEventListener('click', onClose);
-
-//     // also close on ESC
-//     const onKey = (ev) => {
-//         if (ev.key === 'Escape') collapseClone(clone, listEl);
-//     };
-//     document.addEventListener('keydown', onKey, { once: true });
-
-//     // If user clicks outside main clone content, collapse
-//     clone.addEventListener('click', (ev) => {
-//         // ignore clicks on inner actionable buttons (floatbutton etc)
-//         if (ev.target.closest('.floatbutton') || ev.target.closest('.clone-close')) return;
-//         // collapse only when clicking the empty area of clone (not inside actionable content)
-//         if (ev.target === clone) collapseClone(clone, listEl);
-//     });
-
-// }
-
-
-export function collapseClone(clone, origListEl) {
-    if (!clone || !origListEl) return;
+    if (!clone || !origListEl) return false;
 
     const rect = origListEl.getBoundingClientRect();
 
-    // animate back to original rectangle
+    // Trigger animation
     clone.classList.remove('expanded');
     clone.style.top = rect.top + 'px';
     clone.style.left = rect.left + 'px';
@@ -186,15 +113,24 @@ export function collapseClone(clone, origListEl) {
     clone.style.height = rect.height + 'px';
     clone.style.borderRadius = window.getComputedStyle(origListEl).borderRadius || '10px';
 
-    // after transition remove clone and restore original visibility
-    const cleanup = () => {
-        try { clone.remove(); } catch (e) {}
-        origListEl.style.visibility = '';
-    };
+    // Wait for the animation or timeout
+    await new Promise((resolve) => {
+        let completed = false;
 
-    // listen once for transition end
-    clone.addEventListener('transitionend', cleanup, { once: true });
-    // safety timeout in case transitionend doesn't fire
-    setTimeout(cleanup, 500);
+        const cleanup = () => {
+            if (completed) return;
+            completed = true;
+
+            try { clone.remove(); } catch (e) {}
+            origListEl.style.visibility = '';
+            resolve(); 
+        };
+
+        clone.addEventListener('transitionend', cleanup, { once: true });
+        setTimeout(cleanup, 500);
+    });
+
+    // Return true once the cleanup is finished
+    return true;
 }
 

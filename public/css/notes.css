@@ -299,7 +299,7 @@ a {
 .bottomline {
     background: rgba(240, 250, 212, 0.8);
     border-bottom: 1px solid rgba(0, 0, 0, 0.5);
-    z-index: 6;
+    z-index: 11;
 }
 
 .logboxCon {
@@ -524,6 +524,13 @@ color: #000000;
 
 .display-name {
     position: relative ;
+}
+
+.display-name::before {
+    position: absolute;
+    width: 100px;
+    height: 35px;
+    content: "";
 }
 
 .display-name > .panel {
@@ -1143,7 +1150,7 @@ textarea:focus {
       rgba(240, 250, 212, 1) 11.61%,
       rgba(220, 243, 153, 1) 77.58%
     );
-    z-index: 3;
+    z-index: 10;
     display: flex;
     justify-content: center ;
     margin: 0px 0px;
@@ -1187,6 +1194,7 @@ a {
     left:50%;
     bottom:40px;
     
+    text-align: center;
     max-width: min(70%,450px);
     box-sizing: border-box;
     padding: 8px 10px;

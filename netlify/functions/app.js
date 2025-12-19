@@ -479,7 +479,8 @@ router.post("/getNotes", async (req, res) => {
 });
 
 router.post("/delNote" , async (req , res) => {
-    const id = req.body.id;
+    const i = req.body.id;
+    const id = Number(i);
     let accessToken = req.body.ACCESSTOKEN;
     const refreshToken = req.cookies.refreshToken;
 
@@ -523,10 +524,12 @@ router.post("/delNote" , async (req , res) => {
 })
 
 router.post("/editNote" , async (req , res) => {
-    const {nId, id, title, content, createTime} =  req.body;
+    const {nId, id:i, title, content, createTime} =  req.body;
 
     let accessToken = req.body.ACCESSTOKEN;
     const refreshToken = req.cookies.refreshToken;
+    const id = Number(i);
+    
 
     let userId;
     let USER;
@@ -537,7 +540,7 @@ router.post("/editNote" , async (req , res) => {
         userId = validateUser.userId;
         USER = validateUser.username;
 
-        console.log(validateUser.message);
+        console.log(validateUser,validateUser.message,i);
     } else if (!validateUser.validated) {
         console.log(validateUser.message)
         res.status(403).json(validateUser);
@@ -549,6 +552,7 @@ router.post("/editNote" , async (req , res) => {
         const newNote = {userId, id , title, content , createTime };
         
         const find = await db.collection("NoteCollection").findOne({id : id});
+        console.log(find);
         if (find.userId===userId) {
             const update = db.collection("NoteCollection")
                 .updateOne({id : id } , {$set: { id , title, content , createTime } });
@@ -644,18 +648,6 @@ router.post("/logout", async (req, res) => {
             { _id: oid },
             { $pull: { refreshTokensArray: { deviceId } } }
         );
-
-        console.log(update);
-
-        // const user = await users.findOne( { _id: oid } ) ;
-        // if (user?.refreshTokensArray) {
-        //     const tokensArray = user.refreshTokensArray;
-        //     const refreshTokensArray = tokensArray.filter((array) => array.deviceId !== deviceId) ;
-
-        //     const updated = await users.updateOne(
-        //         { _id: oid } , {$set: {refreshTokensArray}} 
-        //     ) ;
-        // }
         console.log("refresh token cleared in database") ;
 
     } catch (err) {

@@ -1,6 +1,6 @@
 import defaultNote from "/js/defaultNotes.js";
 import { geticon, icons } from "/js/svg.js";
-import { toggleExpand, collapseClone } from "/js/expandCard.js";
+import { toggleExpand, collapseNote } from "/js/expandCard.js";
 
 
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
@@ -116,23 +116,15 @@ const loaddate= (date) => {
 
 const delBtn = (i) => {
     const delicon = geticon("delete", 25, null, 20.83);
-
-
-    if (isNaN(i)) {
-        const index = i.slice(-1);
-        const del = `<span class="floatbutton default" id="del${index}" >${delicon}</span>`
-        return del;
-        
-    } else { 
-        const del = `<span class="floatbutton" id="del${i}">${delicon}</span>`
-        return del;
-    }
+    const del = `<span class="floatbutton" id="del${i}">${delicon}</span>`
+    return del;
+    
 }
 
 const editBtn = (i) => {
-        const editicon= geticon("edit", 25, null, 20.83);
-        const edit = `<span class="floatbutton" id="edit${i===0?"notAllowed":i}">${editicon}</span>`;
-        return edit;
+    const editicon= geticon("edit", 25, null, 20.83);
+    const edit = `<span class="floatbutton" id="edit${i===0?"notAllowed":i}">${editicon}</span>`;
+    return edit;
 }  
 
 const copyBtn = (i) => {
@@ -153,26 +145,10 @@ const moreBtn = (i) => {
         return more;
 }
 
-
-
 const actionBtns = (i, check) => { 
     //Check if it's a default note by checking create time
-    let delSpan, editSpan, defaultnote;
-    console.log(check);
-
-    if (check) {
-        defaultnote = (check===0)?true:false;
-        const defaultid = `default${i}`; 
-
-        delSpan = `${delBtn(defaultnote?defaultid:i)}`;
-        editSpan = `${editBtn(defaultnote?0:i)}`; 
-        
-    } else {
-        delSpan = `${delBtn(i)}`;
-        editSpan = `${editBtn(i)}`;
-    }
-    console.log(defaultnote);
-
+    const delSpan = `${delBtn(i)}`;
+    const editSpan = `${editBtn(i)}`;
     const copySpan = `${copyBtn(i)}`;
     const expandSpan = `${expandBtn(i)}`;
     const moreSpan = `${moreBtn(i)}`;
@@ -187,7 +163,7 @@ const errObbj = (errText) => {
     if (!alertEl) return;
     const i = alertEl.children.length + 1;
 
-    const alrt = `<div class="alrt" id="alrt${i}">x ${errText}</div>`;
+    const alrt = `<div class="alrt" id="alrt${i}">${errText}</div>`;
     
     alertEl.insertAdjacentHTML("beforeend", alrt);
 
@@ -239,7 +215,7 @@ const animateblock = (targetId, animator, type = "remove", delay = 500, callback
         // Check if user wants to delete or run a custom function
         if (callback === "delete") {
             targetEl.remove(); // Removes element from DOM
-            console.log(`Deleted ${targetId} from DOM`);
+           
         } else if (typeof callback === "function") {
             callback(); // Runs custom function
         }
@@ -256,7 +232,7 @@ const animateblock = (targetId, animator, type = "remove", delay = 500, callback
         // 3. Toggle the class
         if (type === "add") {
             targetEl.classList.add(animator);
-            console.log(`${type} ${animator} from ${targetId}`);
+         
         } else if (type === "remove") {
             targetEl.classList.remove(animator);
         }
@@ -293,17 +269,17 @@ const preventClick = (toggle, elementId, btn) => {
 
     if (toggle==="on" && btn !== null) {
             const parentId = element.parentElement.id;
-            console.log(parentId);
+           
 
             element.remove();
             const newBtn = btn;
             const inputareaEl = document.getElementById(parentId);
             inputareaEl.insertAdjacentHTML("beforeend", newBtn);
-            console.log(`click re-enabled for element id: ${id}`);
+           
 
     } else if (toggle==="off") {
         document.getElementById(id).onclick = "" ;
-        console.log(`click disabled for element id: ${id}`);
+       
     } else {
         return ;
     }
@@ -311,9 +287,15 @@ const preventClick = (toggle, elementId, btn) => {
 
 const disableBtn = (toggle , id , disableClass) => {
     const element = document.getElementById(id);
-    console.log(disableClass);
+
+    //check if its a float button and disable opacity if its is
+    const float = element.closest(".float");
+    if (float){float.style.opacity = 1; }
+
+    //set disableclass if provided
     const disableclass = (!disableClass)?"disabled":disableClass;
-    console.log(disableclass);
+  
+    // toggle button
     if (toggle==="on") {
         //disable button
         element.classList.add(disableclass);
@@ -346,22 +328,22 @@ const editWarning = (id) => {
 }
 
 
-const liElement = (liId, liTitle, liContent , liCreateTime , animate ) => { 
+const liElement = (liId, liTitle, liContent , liCreateTime , animate , type) => { 
 
     //Check if it's a default note by checking create time 
-    const defaultnote = (liCreateTime===0)?true:false;
+    
     const titlespan = `<span id="tit${liId}" class="bold">${liTitle} </span>`;
      
-    const datespan = `<span class="date">${defaultnote?"":loaddate(liCreateTime)}</span>`
+    const datespan = `<span class="date">${(type==="default")?"":loaddate(liCreateTime)}</span>`
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${actionBtns(liId,liCreateTime)}</span></div>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${actionBtns(liId,type)}</span></div>`;
     const contentSpan= `<span class="content" id="cont${liId}" >${liContent.replaceAll("\n","<br/>")}</span>`;
     
     const liClass = animate?'listHide':''; 
     const listClass = animate?'offset-right':'';
 
     
-    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass}" id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
+    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass}" data-type=${type} id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
 
     return list ;
 }  
@@ -373,6 +355,12 @@ const getLatestId = () => {
         const nId = u + 1;
 
         return nId;
+}
+
+const moveCursorToEnd = (id) => {
+    const inputt = document.getElementById(id);
+    inputt.focus();
+    inputt.setSelectionRange(inputt.value.length, inputt.value.length);
 }
 
 const ResizeTextarea = (id) => {
@@ -387,19 +375,21 @@ const ResizeTextarea = (id) => {
     autoResize(element);
 }
 
-const saveEdit = (id, title, content, createTime) => {
-    const listEl = document.getElementById(`list${id}`);
+const saveEdit = (i, title, content, createTime) => {
+    //check if expanded
+    const xid = (i.charAt(0)==="X")?true:false;
+    const id = (i.charAt(0)==="X")?i.replace("X",""):i ;
+    const targetId = (xid)?`expandedList${id}`:`list${id}`;
+
+    const listEl = document.getElementById(targetId);
     listEl.classList.remove("listedit");
 
-    const titlespan = `<span id="tit${id}" class="bold">${title}</span>`;
-    // const delSpan = `${delBtn(id)}`;
-    // const editSpan = `${editBtn(id)}`;
-    // const moreSpan = `${moreBtn(id)}`;
+    const titlespan = `<span id="tit${i}" class="bold">${title}</span>`;
      
     const datespan = `<span class="date">${loaddate(createTime)}</span>`
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${id}" class="float">${actionBtns(id)}</span></div>`;
-    const contentSpan= `<span class="content" id="cont${id}" >${content.replaceAll("\n","<br/>")}</span>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${i}" class="float">${actionBtns(i)}</span></div>`;
+    const contentSpan= `<span class="content" id="cont${i}" >${content.replaceAll("\n","<br/>")}</span>`;
 
     
     const editedNote = `${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}`;
@@ -413,7 +403,7 @@ const addToTop = (id, title, content, createTime) => {
     const ulEl = document.getElementById('noteUl');
     const newId = id ;
     const newLi = liElement(id, title, content, createTime, true);
-    console.log(newId);
+    
     if (!ulEl) {
         //create new ul element if it doesn't already exist
 
@@ -502,7 +492,7 @@ async function getNotes() {
             USER = data.USER ;
             const userBold = `<span class="usernameBold">${USER.charAt(0).toUpperCase()+USER.slice(1)}</span>`
             const defaultnote = defaultNote(userBold);
-            const noteContainer = defaultnote.map(note => liElement (note.id, note.title, note.content, 0)).join("");
+            const noteContainer = defaultnote.map(note => liElement (note.id, note.title, note.content, 0 ,false , "default")).join("");
             const noteUl = `<ul id="noteUl" class="offset-right">${noteContainer}</ul>`;
             noteEl.innerHTML=noteUl;
 
@@ -544,6 +534,8 @@ async function getNotes() {
         if (err.name === 'AbortError') {
             errObbj('Request timed out. Please try again.');
             // Animate loader out
+            const reload = `<div class="reload"><span class="load"><b>Couldn't connect to server</b> <span id="reload" style="color: var(--colordarker); cursor: pointer;" >try again</span></span></div>`
+            noteEl.innerHTML=reload;
             animateblock("loadCon","fade-out","add", 250, "delete");
             return;
         }
@@ -690,7 +682,7 @@ const serverDel = async (i) => {
     disableBtn("on", delId);
     const requestTimeout = reqTimeout() ;
 
-  try {  
+    try {  
         const res = await fetch(("/.netlify/functions/app/delNote") , {
             method: "POST" ,
             headers: {"Content-type": "application/json" } ,
@@ -709,7 +701,7 @@ const serverDel = async (i) => {
             
         } else if (res.status===403) {
             const result = await res.json();
-            console.log(result.message);
+            console.error(result.message);
             const errTxt = "Couldn't validate your request. you must log in again";
             errObbj(errTxt);
             reLogin();
@@ -718,6 +710,7 @@ const serverDel = async (i) => {
         } else {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;
+            alertObj("Note deleted successfully");
             delNote(i);
 
         }
@@ -728,7 +721,7 @@ const serverDel = async (i) => {
             errObbj('Request timed out. Please try again.');
             disableBtn("off", delId);
         }
-        console.log(err);
+        console.error(err);
 
     }
 }
@@ -756,45 +749,52 @@ const delNote = (index) => {
 
 const editMode = (i) => {
 
-    console.log(!isNaN, "triggered, true if i is a number.");
-    //check if edit is allowed
-    if (i==="notAllowed") {
-        const errTxt = "this note can not be edited";
-        errObbj(errTxt);
-    } else if (!isNaN(i)) {
-        const liTarget = document.getElementById(`nt${i}`);
-        const titleTarget = document.getElementById(`tit${i}`);
-        const contentTarget = document.getElementById(`cont${i}`);
+    
+    let id = i ;
+    //Check if expanded
+    const xid = (id.charAt(0)==="X")?id.replace("X",""): null;
+    id = (id.charAt(0)==="X")?id.replace("X",""): id;
 
-        const id = i ;
-        const title = titleTarget.innerHTML ;
-        const content = contentTarget.innerHTML.replaceAll("<br>", "\n") ;
+    const liTarget = document.getElementById(`nt${id}`);
+    const titleTarget = document.getElementById(`tit${id}`);
+    const contentTarget = document.getElementById(`cont${id}`);
+    const title = titleTarget.innerHTML ;
+    const content = contentTarget.innerHTML.replaceAll("<br>", "\n") ;
 
 
-        EDITARRAY = {id: Number(id) , title: title.trim() , content: content.trim()}  ;
+    EDITARRAY = {id: i , title: title.trim() , content: content.trim()}  ;
+    const lister = (ix) => {
+        const titlebox = `<input type="text" class="bold editTitle" id="titE${ix}" value="${title.trim()}" />` ;
+        const contentbox = `<div class="contentCon"> <textarea id="contE${ix}" class="editContent">${content.trim()}</textarea></div> ` ;
+        const donebox = `<span id="editMode${ix}" class="float floatedit"  style= "opacity: 1;"><span class="floatbuttonDark" id="dn${ix}">${geticon("check", 20 )}</span></span>`;
+        const insideList = `<div class='titleCon'>${titlebox}${donebox}</div>${contentbox}`;
 
-        const titlebox = `<input type="text" class="bold editTitle" id="titE${i}" value="${title.trim()}" />` ;
-        const contentbox = `<div class="contentCon"> <textarea id="contE${i}" class="editContent">${content.trim()}</textarea></div> ` ;
-        const donebox = `<span id="editMode${i}" class="float floatedit"><span class="floatbuttonDark" id="dn${i}">${geticon("check", 20 )}</span></span>`;
-        
-        const editbox = `<div class="list listedit" id="list${i}"> <div class='titleCon'>${titlebox}${donebox}</div>${contentbox}</div>`;
-
-        liTarget.innerHTML = editbox ;
-
-        const inputt = document.getElementById(`titE${i}`);
-        inputt.focus();
-        inputt.setSelectionRange(inputt.value.length, inputt.value.length);
-        ResizeTextarea(i);
-
-
+        return insideList
     }
+    
+
+    const editbox = `<div class="list listedit" id="list${id}">${lister(id)}</div>`;
+    if (xid) {
+        const expandedList = document.querySelector(`#expandedList${id}`);
+       
+        if (expandedList) {
+            expandedList.classList.add('listedit');
+            expandedList.innerHTML = lister(i);
+            moveCursorToEnd(`contE${i}`)
+        }
+    }
+
+    liTarget.innerHTML = editbox ;
+
+    if (!xid) moveCursorToEnd(`titE${id}`)
+    ResizeTextarea(id);
 }
 
 
 
 const serverEdit = async (i) => {
-
-    const id = i;
+    const xid = (i.charAt(0)==="X")?true:false ;
+    const id = (i.charAt(0)==="X")?i.replace("X",""):i;
     const titleEl = document.getElementById(`titE${i}`);
     const contentEl = document.getElementById(`contE${i}`);
 
@@ -802,8 +802,7 @@ const serverEdit = async (i) => {
     const content = contentEl.value;
     const createTime = new Date().toISOString() ;
 
-    const editObj = {id: id ,  title: title.trim() , content: content.trim()} ;
-
+    const editObj = {id: i,  title: title.trim() , content: content.trim()} ;
 
     //check for changes
     const changes = checkChanges(editObj) ;
@@ -811,6 +810,7 @@ const serverEdit = async (i) => {
     // If no changes are made return
     if (!changes) {
         
+        if (xid) {saveEdit(i, title, content, createTime);}
         saveEdit(id, title, content, createTime);
         EDITARRAY = null;
         return
@@ -819,10 +819,6 @@ const serverEdit = async (i) => {
     
     const nId = getLatestId();
 
-
-
-    const spinner = `<svg class="spinner" width="25px" height="25px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg>`;
-    const donebox = `<span class="float"><span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span></span>`;
     const dnId = `dn${i}`;
     const dnEl = document.getElementById(dnId);
     dnEl.innerHTML = geticon("spinner",20 , "var(--colorlighter)") ;
@@ -847,14 +843,13 @@ const serverEdit = async (i) => {
         if (res.status===500) {     
             const errTxt = "Can't connect to server. Please try again."
             errObbj(errTxt);
-            const dnBigButton = `<span class="floatbuttonDark" id="dn${i}" onclick="serverEdit(${i})">${donebig}</span>`;
-            // Re-enable click if edit failed.
-            preventClick("on", dnId, dnBigButton );
+            dnEl.innerHTML = geticon("check", 20 );
+            disableBtn("off", dnId); 
             throw new Error( "Network error");
 
         } else if (res.status===403) {
             const result = await res.json();
-            console.log(result.message);
+            console.error(result.message);
             const errTxt = "Couldn't validate your request. you must log in again";
             errObbj(errTxt);
             reLogin();
@@ -864,12 +859,15 @@ const serverEdit = async (i) => {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;
             EDITARRAY = null;
+            alertObj("Note edited successfully");
+            if (xid) {saveEdit(i, title, content, createTime);}
             saveEdit(id, title, content, createTime);
         }
 
     } catch (err) { 
         if (err.name === 'AbortError') {
             errObbj('Request timed out. Please try again.');
+            dnEl.innerHTML = geticon("check", 20 );
             disableBtn("off", dnId); 
         }
     }
@@ -878,7 +876,6 @@ const serverEdit = async (i) => {
 }
 
 const logOut = async() => {
-    console.log(ACCESSTOKEN, USER);
 
     try {
         const res = await fetch(("/.netlify/functions/app/logout") , {
@@ -907,7 +904,7 @@ const logOut = async() => {
         }
          
     } catch (err) { 
-        console.log(err.message);
+        console.error(err.message);
 
     }
     
@@ -922,30 +919,43 @@ document.addEventListener("click", async function (e) {
     // Delete button
     if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("del")) {
         if (e.target.closest(".floatbutton").classList.contains("disabled")) {
-            console.log("disabled");
             return};
-        const id = e.target.closest(".floatbutton").id.replace("del", "");
+        const i = e.target.closest(".floatbutton").id.replace("del", "");
+        const id = (i.charAt(0)==="X")?i.replace("X", ""):i;
         // Prevent server delete for defualt notes
-        if (!isNaN(id)&&!e.target.closest(".floatbutton").classList.contains("default")) {
-            serverDel(Number(id));
-        } else {
+
+        const listElement = e.target.closest('.list');
+
+        if (listElement && listElement.getAttribute('data-type') === 'default') {
             delNote(id);
+        } else {
+            if (i.charAt(0)==="X") {
+                await collapseNote(`expandedList${id}`);
+            }
+            serverDel(id);
         }
+        
     }
 
     // Edit button
     if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("edit")) {
         
         if (e.target.closest(".floatbutton").classList.contains("disabled")) return;
-        const id = e.target.closest(".floatbutton").id.replace("edit", "");
+        let id = e.target.closest(".floatbutton").id.replace("edit", "");
 
         
         // check if an element is already being edited and prompt the user to finish editing it 
         if (EDITARRAY) return editWarning(id);
 
-        alertObj(id);
+        const listElement = e.target.closest('.list');
         
-        editMode(id);
+
+        if (listElement && listElement.getAttribute('data-type') === 'default') {
+            errObbj("You can't edit Default notes.");
+        } else {
+            editMode(id);
+        }
+        
         
     }
 
@@ -975,11 +985,19 @@ document.addEventListener("click", async function (e) {
         i = (i.charAt(0)==="X")?i.replace("X", ""):i ;
         await toggleExpand(i);
 
-        alertObj(`you clicked ${id} i = ${i}`);
     }
 
     // Reload button
     if (e.target.id === "reload" || e.target.closest("#reload")) {
+        //Check for expanded note.
+        const expanded = document.querySelector(".expanded");
+        if (expanded) {
+            const id = expanded.id;
+            const closed = await collapseNote(id);
+            if (closed) { getNotes();};
+            return;
+
+        }
         getNotes();
     }
 });
@@ -1011,11 +1029,8 @@ document.addEventListener("click", function (e) {
     if (doneBtn && doneBtn.id.startsWith("dn")) {
         if (e.target.closest(".floatbuttonDark").classList.contains("disabled")) return;
         const id = doneBtn.id.replace("dn", "");
-        if (!isNaN(id)) {
-            serverEdit(Number(id));
-        } else {
-            serverEdit(id);
-        }
+        serverEdit(id);
+       
     }
 });
 
