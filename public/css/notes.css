@@ -64,7 +64,7 @@ body {
     align-items: center;
     justify-content: space-between;
 
-    background: rgba(240, 250, 212, 1);
+    background: rgba(240, 250, 212, 0.8);
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 2px;
 
@@ -298,10 +298,12 @@ a {
 /*Login Page*/
 
 .bottomline {
-    background: rgba(240, 250, 212, 0.8);
+    background: rgba(240, 250, 212, 0.95);
     border-bottom: 1px solid rgba(0, 0, 0, 0.5);
     z-index: 11;
 }
+
+
 
 .logboxCon {
     width: 100%;
