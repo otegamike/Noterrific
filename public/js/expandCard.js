@@ -35,6 +35,7 @@ export async function toggleExpand(i) {
     expandbtn.id = `expandX${i}`;
 
     // initial fixed positioning to match original card
+    
     clone.style.position = 'fixed';
     clone.style.top = rect.top + 'px';
     clone.style.left = rect.left + 'px';
@@ -64,8 +65,6 @@ export async function toggleExpand(i) {
         // clone.style.transform = 'translateX(-50%)';
         clone.style.width = '90vw';
         clone.style.height = '85vh';
-        // clone.style.style.maxHeight = '85vh';
-        // clone.style.style.maxWidth = '90vw';
         clone.style.borderRadius = '0';
         clone.classList.add('expanded');
     });

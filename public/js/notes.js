@@ -1,6 +1,7 @@
 import defaultNote from "/js/defaultNotes.js";
 import { geticon, icons } from "/js/svg.js";
 import { toggleExpand, collapseNote } from "/js/expandCard.js";
+import {animateElement} from "/js/animationHandler.js";
 
 
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
@@ -252,14 +253,15 @@ const delAnimation = (index) => {
     }
 
     const height = listEl.offsetHeight; 
+    liEl.style.gridTemplateRows = "none";
     liEl.style.height = height + "px"; 
 
     setTimeout(() => {
-       liEl.style.height = 1 + "px";
-       liEl.style.marginTop = 0 +"px";
-       listEl.style.transform = "translateX(20%)"
+       liEl.style.height = 0.01 + "px";
+       liEl.style.marginBottom = 0 +"px";
+       listEl.style.transform = "translateX(20%) translateY(-16px)"
        listEl.style.opacity = 0;
-    }, 1000)
+    }, 10)
 }
 
 const preventClick = (toggle, elementId, btn) => {
@@ -742,7 +744,7 @@ const delNote = (index) => {
     // Remove element after animation
     setTimeout(() => {
         liEl.remove();
-    }, 2000);
+    }, 1000);
 };
 
 
@@ -763,9 +765,9 @@ const editMode = (i) => {
 
 
     EDITARRAY = {id: i , title: title.trim() , content: content.trim()}  ;
-    const lister = (ix) => {
+    const lister = (ix,x) => {
         const titlebox = `<input type="text" class="bold editTitle" id="titE${ix}" value="${title.trim()}" />` ;
-        const contentbox = `<div class="contentCon"> <textarea id="contE${ix}" class="editContent">${content.trim()}</textarea></div> ` ;
+        const contentbox = `<div class="contentCon"> <textarea id="contE${ix}" class="editContent ${x?'fillspace':''}">${content.trim()}</textarea></div> ` ;
         const donebox = `<span id="editMode${ix}" class="float floatedit"  style= "opacity: 1;"><span class="floatbuttonDark" id="dn${ix}">${geticon("check", 20 )}</span></span>`;
         const insideList = `<div class='titleCon'>${titlebox}${donebox}</div>${contentbox}`;
 
@@ -773,13 +775,13 @@ const editMode = (i) => {
     }
     
 
-    const editbox = `<div class="list listedit" id="list${id}">${lister(id)}</div>`;
+    const editbox = `<div class="list listedit list-boundary" id="list${id}">${lister(id)}</div>`;
     if (xid) {
         const expandedList = document.querySelector(`#expandedList${id}`);
        
         if (expandedList) {
             expandedList.classList.add('listedit');
-            expandedList.innerHTML = lister(i);
+            expandedList.innerHTML = lister(i,true);
             moveCursorToEnd(`contE${i}`)
         }
     }
@@ -926,12 +928,15 @@ document.addEventListener("click", async function (e) {
 
         const listElement = e.target.closest('.list');
 
+        // If expanded, collapse first
+        if (i.charAt(0)==="X") {
+            await collapseNote(`expandedList${id}`);
+        }
+
+        // Check if default note
         if (listElement && listElement.getAttribute('data-type') === 'default') {
             delNote(id);
         } else {
-            if (i.charAt(0)==="X") {
-                await collapseNote(`expandedList${id}`);
-            }
             serverDel(id);
         }
         
@@ -990,13 +995,17 @@ document.addEventListener("click", async function (e) {
     // Reload button
     if (e.target.id === "reload" || e.target.closest("#reload")) {
         //Check for expanded note.
+        alertObj("Refreshing your notes...", "alert-warning");
         const expanded = document.querySelector(".expanded");
+        const ulEl = document.getElementById("noteUl");
+        
         if (expanded) {
             const id = expanded.id;
-            const closed = await collapseNote(id);
-            if (closed) { getNotes();};
-            return;
+            await collapseNote(id);
 
+        }
+        if (ulEl) {
+            await animateElement("noteUl","fade-out","add", 10, "delete", true);
         }
         getNotes();
     }
@@ -1067,9 +1076,10 @@ document.addEventListener("keydown", function (e) {
 });
 
 
-// Event listener for reload button
+// Event listener for Log-out button
 document.addEventListener("click", function (e) {
   if (e.target && e.target.id === "logout") {
+    alertObj("You are logging out...", "alert-warning");
     logOut();
   }
 });

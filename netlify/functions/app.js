@@ -178,7 +178,7 @@ const verifyToken = async(accesstoken, refreshtoken) => {
             const decoded = jwt.verify(refreshtoken, process.env.REFRESH_TOKEN_SECRET);
             const { id: userId, username } = decoded;
             const validInDb = await checkDbRefreshToken(userId , refreshtoken) ;
-            console.log("Db refresh token valid:", validInDb) ;
+            console.log("Db refresh token valid:") ;
             if (!validInDb.tokenFoundInDb) {
                 if (!validInDb.dbConnected) {
                     return {message: "couldn't connect to database", validated: false , dbConnected: false, dbStatus: "failed" } ;
@@ -371,7 +371,7 @@ router.post("/login" , async (req , res) => {
                     {username: username } , {$set: updateFields} 
                 ) ;
 
-                console.log("refresh token(s) updated in database", updated) ;
+                console.log("refresh token(s) updated in database") ;
 
                 res.cookie("refreshToken", refreshToken, {
                     httpOnly: true, maxAge: 14 * 24 * 60 * 60 * 1000
@@ -406,10 +406,8 @@ router.post("/login" , async (req , res) => {
 })
 
 router.post("/checkUsername" , async (req , res) => {
-    console.log("trigered");
     const username = req.body.uName;
     const inputt = req.body.input;
-    console.log(inputt);
     
     try {
         
@@ -423,8 +421,6 @@ router.post("/checkUsername" , async (req , res) => {
         }    
         const response = (confirm===null)? "available" : "unavailable" ;
         res.status(200).send(response);
-
-        console.log(confirm,username,response)
 
     } catch (err) {
            console.error("there was an error")
@@ -540,7 +536,7 @@ router.post("/editNote" , async (req , res) => {
         userId = validateUser.userId;
         USER = validateUser.username;
 
-        console.log(validateUser,validateUser.message,i);
+        console.log(validateUser.message);
     } else if (!validateUser.validated) {
         console.log(validateUser.message)
         res.status(403).json(validateUser);
@@ -552,7 +548,7 @@ router.post("/editNote" , async (req , res) => {
         const newNote = {userId, id , title, content , createTime };
         
         const find = await db.collection("NoteCollection").findOne({id : id});
-        console.log(find);
+        
         if (find.userId===userId) {
             const update = db.collection("NoteCollection")
                 .updateOne({id : id } , {$set: { id , title, content , createTime } });
@@ -567,7 +563,7 @@ router.post("/editNote" , async (req , res) => {
              res.status(403).json({message: "you do not have permission to edit."});
         }
     } catch (err) {
-        console.log(err);
+        console.error(err);
         res.status(500);
 
     }
@@ -589,7 +585,6 @@ router.post("/newNote" , async (req , res) => {
             accessToken = newToken.accessToken ;
             userId = newToken.userId;
         } else {
-            console.log(newToken);
             res.status(403).json(newToken);
             return;
         }
