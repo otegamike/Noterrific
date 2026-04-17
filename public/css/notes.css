@@ -47,9 +47,8 @@ body {
 }
 
 .svgTarget {
-    width:40vw;
-    height: calc(40vw * (77.75/207.75));
-
+    width: 28vw;
+    height: calc(28vw * (77.75 / 207.75));
 }
 
 .landingPageHeader {
@@ -685,7 +684,7 @@ li {
 .list-boundary {
     display: grid;
     grid-template-rows: subgrid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 100%;
     row-gap: 0px;
     grid-row: span 3;
 }
@@ -972,12 +971,15 @@ textarea:focus {
 }
 
 .action-btns {
+    --close-position: translateX(60%);
+    --open-position: translateX(1%);
+
     display: flex;
     flex-direction: row;
     width: fit-content;
     border-radius: 8px;
     background-color: #edf9cc;
-    transform: translateX(60%);
+    transform: var(--close-position);
     transition: transform 0.5s ease;
     
 }
@@ -1021,7 +1023,7 @@ textarea:focus {
 
 .morebutton {
     display: flex;
-    width: 15px;
+    width: 20px;
     height: 30px;
     margin-left: 6px;
     box-sizing: border-box;
@@ -1034,7 +1036,7 @@ textarea:focus {
 }
 
 .float:has(.morebutton:hover) .action-btns {
-    transform: translateX(18%);
+    transform: var(--open-position);
 }
 
 .float:has(.morebutton:hover) .hidable-action-btns {
@@ -1042,7 +1044,7 @@ textarea:focus {
 }
 
 .action-btns:has(.hidable-action-btns:hover) {
-    transform: translateX(18%);
+    transform: var(--open-position);
 }
 
 .hidable-action-btns:hover {
@@ -1242,6 +1244,35 @@ a {
 .fade-out {
     opacity: 0;
     transition: opacity 0.5s ease-in-out;
+}
+
+.pinned {
+    --button-opacity: 0;
+    background-color: var(--editmode);
+    border: 2px solid var(--semi-light);
+
+    .float {
+        opacity: 1;
+
+        .action-btns {
+            background-color: var(--editmode);
+
+            .floatbutton {
+                background-color: var(--editmode);
+                opacity: var(--button-opacity);
+
+                transition: opacity 0.5s ease-in-out;
+            }
+        }
+
+        .morebutton {
+            background-color: var(--editmode);
+        }
+    }
+
+    &:hover {
+        --button-opacity: 1;
+    }
 }
 
 

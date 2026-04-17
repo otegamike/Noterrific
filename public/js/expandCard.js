@@ -1,5 +1,7 @@
 // Expand / Collapse card to fullscreen using a cloned overlay for smooth animation
-export async function toggleExpand(i) {
+import truncateString from "./truncateString.js";
+
+export async function toggleExpand(i, textContent) {
     const listEl = document.getElementById(`list${i}`);
     if (!listEl) return;
 
@@ -27,6 +29,9 @@ export async function toggleExpand(i) {
     const expandbtn = clone.querySelector(`#expand${i}`);
     if(!titleText || !contentText || !editbtn || !delbtn || !copybtn || !expandbtn) return;
 
+    if (contentText && typeof textContent === "string") {
+        contentText.innerHTML = textContent.replaceAll("\n","<br/>");
+    }
     titleText.id = `titX${i}`;
     contentText.id = `contX${i}`;
     editbtn.id = `editX${i}`;
@@ -101,6 +106,12 @@ export async function collapseNote(id) {
     const origListEl = document.querySelector(`#list${i}`);
 
     if (!clone || !origListEl) return false;
+    
+    const cloneText = clone.querySelector('.contentCon > .content');
+    const contentText = origListEl.querySelector('.contentCon > .content');
+
+    const truncatedString = truncateString(cloneText.innerHTML, {maxWords: 100});
+    contentText.innerHTML = truncatedString.text;
 
     const rect = origListEl.getBoundingClientRect();
 

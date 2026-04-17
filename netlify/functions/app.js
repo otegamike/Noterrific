@@ -467,7 +467,7 @@ router.post("/getNotes", async (req, res) => {
         return res.status(404).json({ accessToken, USER, validated: true, notes:"none", message: "No notes found" });
         }
 
-        res.json({accessToken, USER, notes});
+        res.status(200).json({accessToken, USER, notes});
     } catch (err) {
         console.error(err);
         res.status(500).json({ validated: true , status: "failed" , message: "Server error" });
@@ -565,6 +565,55 @@ router.post("/editNote" , async (req , res) => {
     } catch (err) {
         console.error(err);
         res.status(500);
+
+    }
+})
+
+router.post("/pin" , async (req , res) => {
+    const {ACCESSTOKEN, id:i, pin} = req.body ;
+    let accessToken = ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+    const id = Number(i);
+    let userId;
+
+    const validateUser = await verifyToken(accessToken,refreshToken) ;
+    if (validateUser.validated) {
+        accessToken = validateUser.accessToken;
+        userId = validateUser.userId;
+        USER = validateUser.username;
+
+        console.log(validateUser.message);
+    } else if (!validateUser.validated) {
+        console.log(validateUser.message)
+        res.status(403).json(validateUser);
+        return;
+    }
+
+    try {
+        const { db } = await connectToDatabase();
+        const find = await db.collection("NoteCollection").findOne({id : id});
+        
+        console.log(id, find, userId);
+        
+        if (!find) throw new Error("note not found")
+
+        
+        if (find.userId===userId) {
+            const update = db.collection("NoteCollection")
+                .updateOne({id : id } , {$set: { pin } });
+            if (update) {
+                res.status(200).json(accessToken);
+                console.log(`note ${id} pinned`) ;
+            } else {
+                res.status(404);
+                console.log('Note not found or cant be deleted')
+            }
+        } else {
+             res.status(403).json({message: "you do not have permission to edit."});
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({message: "Server error"});
 
     }
 })

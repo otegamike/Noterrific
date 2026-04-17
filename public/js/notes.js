@@ -2,7 +2,7 @@ import defaultNote from "/js/defaultNotes.js";
 import { geticon, icons } from "/js/svg.js";
 import { toggleExpand, collapseNote } from "/js/expandCard.js";
 import {animateElement} from "/js/animationHandler.js";
-
+import truncateString from "/js/truncateString.js";
 
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 
@@ -146,15 +146,29 @@ const moreBtn = (i) => {
         return more;
 }
 
-const actionBtns = (i, check) => { 
+const pinBtn = (i) => {
+    const pinicon= geticon("pin", 20);
+    const pin = `<span class="floatbutton" id="pin${i}">${pinicon}</span>`;
+    return pin;
+}
+
+const unpinBtn = (i) => {
+    const unpinicon= geticon("pinned", 20);
+    const unpin = `<span class="floatbutton" style="--button-opacity: 1;" id="pin${i}">${unpinicon}</span>`;
+    return unpin;
+}
+
+const actionBtns = (i, pinned) => { 
     //Check if it's a default note by checking create time
     const delSpan = `${delBtn(i)}`;
     const editSpan = `${editBtn(i)}`;
     const copySpan = `${copyBtn(i)}`;
     const expandSpan = `${expandBtn(i)}`;
     const moreSpan = `${moreBtn(i)}`;
+    const pinSpan = `${pinBtn(i)}`;
+    const unpinSpan = `${unpinBtn(i)}`;
 
-    return `<span class="action-btns">${editSpan}${delSpan}<span class="hidable-action-btns">${copySpan}${expandSpan}</span></span>${moreSpan}`;
+    return `<span class="action-btns" style='--close-position:${pinned?"translateX(50%)":"translateX(60%)"}; --open-position:${pinned?"translateX(15%)":"translateX(1%)"};'>${editSpan}${delSpan}${pinned?unpinSpan:""}<span class="hidable-action-btns">${pinned?"":pinSpan}${copySpan}${expandSpan}</span></span>${moreSpan}`;
 };
 
 //___Alert Object___//
@@ -330,22 +344,26 @@ const editWarning = (id) => {
 }
 
 
-const liElement = (liId, liTitle, liContent , liCreateTime , animate , type) => { 
+const liElement = (note, animate , type) => { 
+
+    const { liId, liTitle, liContent , liCreateTime, pinned} = note;
 
     //Check if it's a default note by checking create time 
     
     const titlespan = `<span id="tit${liId}" class="bold">${liTitle} </span>`;
      
     const datespan = `<span class="date">${(type==="default")?"":loaddate(liCreateTime)}</span>`
+    const content = truncateString(liContent, { maxWords: 100 });
+    const contentText = content.text;
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${actionBtns(liId,type)}</span></div>`;
-    const contentSpan= `<span class="content" id="cont${liId}" >${liContent.replaceAll("\n","<br/>")}</span>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${actionBtns(liId,pinned)}</span></div>`;
+    const contentSpan= `<span class="content" id="cont${liId}" >${contentText.replaceAll("\n","<br/>")}</span>`;
     
     const liClass = animate?'listHide':''; 
     const listClass = animate?'offset-right':'';
 
     
-    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass}" data-type=${type} id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
+    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass} ${pinned?'pinned':''} " data-type=${type} id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
 
     return list ;
 }  
@@ -404,7 +422,7 @@ const addToTop = (id, title, content, createTime) => {
     
     const ulEl = document.getElementById('noteUl');
     const newId = id ;
-    const newLi = liElement(id, title, content, createTime, true);
+    const newLi = liElement({liId: id, liTitle: title, liContent: content, liCreateTime: createTime}, true);
     
     if (!ulEl) {
         //create new ul element if it doesn't already exist
@@ -453,9 +471,46 @@ const reLogin = () => {
     window.location.href = "/login.html?page=invalidated";
 }
 
+const renderNotes = (loader = false) => {
+    
+    const noteEl = document.getElementById("notes");
+    if (!noteEl) {
+        console.error("No note element found");
+        return;
+    }
+
+    const pinnedNotes = USERNOTES.filter(({pin}) => pin);
+    const unpinnedNotes = USERNOTES.filter(({pin}) => !pin);
+
+    const pinnedNoteList = pinnedNotes.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: note.createTime, pinned: note.pin})).join("");
+    const unpinnedNoteList = unpinnedNotes.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: note.createTime, pinned: note.pin})).join("");
+    
+
+    const noteUl = `<ul id="noteUl" ${loader?`class="offset-right"`:''}>${pinnedNoteList}${unpinnedNoteList}</ul>`;
+    noteEl.innerHTML=noteUl;
+    // Animate loader out
+    if (loader) {
+        animateblock("loadCon","fade-out","add", 250, "delete");
+        animateblock("noteUl","offset-right","remove", 500);
+    }
+    
+}
+
 let ACCESSTOKEN ;
 let EDITARRAY ;
 let USER ;
+let USERNOTES;
+
+function filterNotes(id) {
+    const note = USERNOTES.find(note => String(note.id) === String(id));
+
+    if (!note) {
+        console.warn(`No note found with id: ${id}`);
+        return null; 
+    }
+
+    return note;
+}
 
 const checkChanges = (obj) => {
     if (!obj.id||!EDITARRAY.id) {
@@ -467,6 +522,38 @@ const checkChanges = (obj) => {
     }
 }
 
+const checkPinStatus = (id) => {
+    const note = filterNotes(id);
+    return note.pin;
+}
+
+async function serverGetNotes() {
+    const requestTimeout = reqTimeout() ;
+
+    try { 
+        const res = await fetch(('/.netlify/functions/app/getNotes'), {
+            method: "POST",
+            headers: {"Content-type": "application/json"},
+            body: JSON.stringify({ACCESSTOKEN: ACCESSTOKEN}),
+            signal: requestTimeout.signal,
+        });
+        requestTimeout.clear();
+
+        const data = await res.json();
+        if (res.status===200 ) {
+            USERNOTES = data.notes ; 
+            console.log("notes refreshed");
+            return true;
+        } else {
+            alertObj("failed to sync up your notes with the database check your connection and try again", "error");
+            console.log("notes refresh failed");
+            return false;
+        }
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
+}
 
 async function getNotes() {
     const loading= ` <div class="loadCon"> 
@@ -494,7 +581,10 @@ async function getNotes() {
             USER = data.USER ;
             const userBold = `<span class="usernameBold">${USER.charAt(0).toUpperCase()+USER.slice(1)}</span>`
             const defaultnote = defaultNote(userBold);
-            const noteContainer = defaultnote.map(note => liElement (note.id, note.title, note.content, 0 ,false , "default")).join("");
+            // save notes to memory
+            USERNOTES = defaultnote;
+
+            const noteContainer = defaultnote.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: 0}, false , "default")).join("");
             const noteUl = `<ul id="noteUl" class="offset-right">${noteContainer}</ul>`;
             noteEl.innerHTML=noteUl;
 
@@ -520,14 +610,10 @@ async function getNotes() {
             ShowDisplayName(USER);
             const notes = data.notes;
             const noteSort = notes.sort((a, b) => new Date(b.createTime) - new Date(a.createTime) ) ; 
-            const noteContainer = noteSort.map(note => liElement (note.id, note.title, note.content, note.createTime)).join("");
-    
 
-            const noteUl = `<ul id="noteUl" class="offset-right">${noteContainer}</ul>`;
-            noteEl.innerHTML=noteUl;
-            // Animate loader out
-            animateblock("loadCon","fade-out","add", 250, "delete");
-            animateblock("noteUl","offset-right","remove", 500);
+            // save notes to memory
+            USERNOTES = noteSort;
+            renderNotes(true);
 
         }
             
@@ -728,6 +814,58 @@ const serverDel = async (i) => {
     }
 }
 
+const serverPinNote = async (i, pin=true) => {
+    const id = i;
+    const pinId = `pin${i}`;
+    const pinEl = document.getElementById(pinId);
+    pinEl.innerHTML = geticon("spinner", 20 , '#96c703') ;
+
+    // disable button
+    disableBtn("on", pinId);
+    const requestTimeout = reqTimeout() ;
+
+    try {  
+        const res = await fetch(('/.netlify/functions/app/pin') , {
+            method: "POST" ,
+            headers: {"Content-type": "application/json" } ,
+            body: JSON.stringify({ACCESSTOKEN , id, pin}) ,
+            signal: requestTimeout.signal,
+        })
+
+        requestTimeout.clear();
+
+        if (res.status===500) {
+            const errTxt = "Could not pin note. Please try again later";
+            errObbj(errTxt);
+            // enable button
+            disableBtn("off", pinId);
+            throw new Error( "Network error");
+            
+        } else if (res.status===403) {
+            const result = await res.json();
+            console.error(result.message);
+            const errTxt = "Couldn't validate your request. you must log in again";
+            errObbj(errTxt);
+            reLogin();
+            return;
+
+        } else {
+            const result = await res.json();
+            ACCESSTOKEN = result.accessToken;
+            alertObj("Note pinned successfully");
+        }
+        
+
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            errObbj('Request timed out. Please try again.');
+            disableBtn("off", pinId);
+        }
+        console.error(err);
+
+    }
+}
+
 
 
 const delNote = (index) => {
@@ -758,11 +896,11 @@ const editMode = (i) => {
     id = (id.charAt(0)==="X")?id.replace("X",""): id;
 
     const liTarget = document.getElementById(`nt${id}`);
-    const titleTarget = document.getElementById(`tit${id}`);
-    const contentTarget = document.getElementById(`cont${id}`);
-    const title = titleTarget.innerHTML ;
-    const content = contentTarget.innerHTML.replaceAll("<br>", "\n") ;
+    
+    const note = filterNotes(id);
 
+    const title = note.title ;
+    const content = note.content ;
 
     EDITARRAY = {id: i , title: title.trim() , content: content.trim()}  ;
     const lister = (ix,x) => {
@@ -967,13 +1105,8 @@ document.addEventListener("click", async function (e) {
     // Copy button
     if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("copy")) {
         const id = e.target.closest(".floatbutton").id.replace("copy", "");
-        const titleEl = document.getElementById("tit"+id);
-        const contEl =  document.getElementById("cont"+id);
-        if (!titleEl||!contEl) {
-            errObbj("Encountered an error while trying to copy. reload and try again") ;
-            return;
-        }
-        const copyText = `${titleEl.innerHTML}\n${contEl.innerHTML.replaceAll("<br>", "\n")}`;
+        const note = filterNotes(id);
+        const copyText = `${note.title}\n${note.content}`;
         const copy = await copyToClipboard(copyText.trim()) ;
         if (!copy.copied) {
             errObbj("Encountered an error while trying to copy. reload and try again") ;
@@ -983,12 +1116,26 @@ document.addEventListener("click", async function (e) {
         alertObj(`Copied to clipboard`);
     }
 
+    // Pin button
+    if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("pin")) {
+        const id = e.target.closest(".floatbutton").id.replace("pin", "");
+
+        const isPinned = checkPinStatus(id);
+        const pin = isPinned? false : true;
+
+        await serverPinNote(id, pin);
+        await serverGetNotes();
+        renderNotes();
+    }
+
     // Expand button
     if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("expand")) {
         const id = e.target.closest(".floatbutton").id;
         let i = id.replace("expand", "");
         i = (i.charAt(0)==="X")?i.replace("X", ""):i ;
-        await toggleExpand(i);
+
+        const note = filterNotes(i);
+        await toggleExpand(i, note.content);
 
     }
 
