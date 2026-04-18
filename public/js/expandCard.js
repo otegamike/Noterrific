@@ -1,5 +1,10 @@
 // Expand / Collapse card to fullscreen using a cloned overlay for smooth animation
 import truncateString from "./truncateString.js";
+import { isOverflowing } from "./utils.js";
+import { geticon } from "./svg.js";
+
+const scrollListeners = new Map(); // Store listeners for cleanup
+
 
 export async function toggleExpand(i, textContent) {
     const listEl = document.getElementById(`list${i}`);
@@ -58,6 +63,16 @@ export async function toggleExpand(i, textContent) {
     // closeBtn.innerText = '×';
     // clone.appendChild(closeBtn);
 
+    const blur = document.createElement('div');
+    blur.className = 'expanded_blur';
+    blur.id = `expanded_blur${i}`;
+    document.body.appendChild(blur);
+    document.body.style.overflow = 'hidden';
+
+    requestAnimationFrame(() => {
+        blur.style.opacity = '1';
+    });
+
     document.body.appendChild(clone);
 
     // hide original content visually (but keep layout)
@@ -96,6 +111,45 @@ export async function toggleExpand(i, textContent) {
         if (ev.target === clone) collapseNote(`expandedList${i}`);
     });
 
+    // Check for overflow and add scroll indicator
+    const contentCon = clone.querySelector('.contentCon');
+    if (contentCon && isOverflowing(contentCon).y) {
+        const indicator = document.createElement('div');
+        indicator.className = 'scroll-indicator';
+        indicator.id = `scroll-indicator${i}`;
+        indicator.innerHTML = geticon('chevron-down', 30, '#96c703');
+        indicator.style.pointerEvents = 'auto'; // Enable clicking
+        clone.appendChild(indicator);
+
+        const onScroll = () => {
+            const isAtBottom = contentCon.scrollHeight - contentCon.scrollTop <= contentCon.clientHeight + 1;
+            if (isAtBottom) {
+                indicator.classList.add('hidden');
+            } else {
+                indicator.classList.remove('hidden');
+            }
+        };
+
+        const onClickIndicator = (ev) => {
+            ev.stopPropagation();
+            contentCon.scrollTo({
+                top: contentCon.scrollHeight,
+                behavior: 'smooth'
+            });
+        };
+
+        contentCon.addEventListener('scroll', onScroll);
+        indicator.addEventListener('click', onClickIndicator);
+        scrollListeners.set(`expandedList${i}`, { 
+            element: contentCon, 
+            listener: onScroll,
+            indicator,
+            indicatorListener: onClickIndicator
+        });
+    }
+
+
+
 }
 
 
@@ -104,18 +158,34 @@ export async function collapseNote(id) {
     const i = id.replace(/\D/g, "");
     const clone = document.querySelector(`#${id}`);
     const origListEl = document.querySelector(`#list${i}`);
+    const blur = document.querySelector(`#expanded_blur${i}`);
 
     if (!clone || !origListEl) return false;
+    
+    // Clear scroll listener if exists
+    if (scrollListeners.has(id)) {
+        const { element, listener, indicator, indicatorListener } = scrollListeners.get(id);
+        element.removeEventListener('scroll', listener);
+        if (indicator && indicatorListener) {
+            indicator.removeEventListener('click', indicatorListener);
+        }
+        scrollListeners.delete(id);
+    }
+
+
     
     const cloneText = clone.querySelector('.contentCon > .content');
     const contentText = origListEl.querySelector('.contentCon > .content');
 
-    const truncatedString = truncateString(cloneText.innerHTML, {maxWords: 100});
-    contentText.innerHTML = truncatedString.text;
+    const truncatedString = truncateString(cloneText.innerHTML.replace(/<br\/?>/gi, "\n"), {maxWords: 100});
+    contentText.innerHTML = truncatedString.text.replaceAll("\n", "<br/>");
 
     const rect = origListEl.getBoundingClientRect();
 
+    document.body.style.overflow = 'auto';
+    
     // Trigger animation
+    blur.style.opacity = '0';
     clone.classList.remove('expanded');
     clone.style.top = rect.top + 'px';
     clone.style.left = rect.left + 'px';
@@ -131,7 +201,7 @@ export async function collapseNote(id) {
             if (completed) return;
             completed = true;
 
-            try { clone.remove(); } catch (e) {}
+            try { clone.remove(); blur.remove(); } catch (e) {}
             origListEl.style.visibility = '';
             resolve(); 
         };

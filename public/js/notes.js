@@ -343,6 +343,13 @@ const editWarning = (id) => {
     }, 1000) ;
 }
 
+const formatNoteContent = (content) => {
+    const truncatedString = truncateString(content, { maxWords: 100 });
+    const formattedContent = truncatedString.text.replaceAll("\n","<br/>");
+    return formattedContent;
+
+}
+
 
 const liElement = (note, animate , type) => { 
 
@@ -353,11 +360,10 @@ const liElement = (note, animate , type) => {
     const titlespan = `<span id="tit${liId}" class="bold">${liTitle} </span>`;
      
     const datespan = `<span class="date">${(type==="default")?"":loaddate(liCreateTime)}</span>`
-    const content = truncateString(liContent, { maxWords: 100 });
-    const contentText = content.text;
+    const formattedContent = formatNoteContent(liContent);
     
     const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${liId}" class="float">${actionBtns(liId,pinned)}</span></div>`;
-    const contentSpan= `<span class="content" id="cont${liId}" >${contentText.replaceAll("\n","<br/>")}</span>`;
+    const contentSpan= `<span class="content" id="cont${liId}" >${formattedContent}</span>`;
     
     const liClass = animate?'listHide':''; 
     const listClass = animate?'offset-right':'';
@@ -395,7 +401,11 @@ const ResizeTextarea = (id) => {
     autoResize(element);
 }
 
-const saveEdit = (i, title, content, createTime) => {
+const saveEdit = (note) => {
+
+    const {id: i, title, content, createTime, pin} = note;
+
+
     //check if expanded
     const xid = (i.charAt(0)==="X")?true:false;
     const id = (i.charAt(0)==="X")?i.replace("X",""):i ;
@@ -408,7 +418,7 @@ const saveEdit = (i, title, content, createTime) => {
      
     const datespan = `<span class="date">${loaddate(createTime)}</span>`
     
-    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${i}" class="float">${actionBtns(i)}</span></div>`;
+    const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${i}" class="float">${actionBtns(i,pin)}</span></div>`;
     const contentSpan= `<span class="content" id="cont${i}" >${content.replaceAll("\n","<br/>")}</span>`;
 
     
@@ -541,7 +551,12 @@ async function serverGetNotes() {
 
         const data = await res.json();
         if (res.status===200 ) {
-            USERNOTES = data.notes ; 
+            const notes = data.notes;
+            const noteSort = notes.sort((a, b) => new Date(b.createTime) - new Date(a.createTime) ) ; 
+
+            // save notes to memory
+            USERNOTES = noteSort;
+
             console.log("notes refreshed");
             return true;
         } else {
@@ -721,10 +736,8 @@ const saveNote = async () => {
             contentEl.value = "";
             saveEl.innerHTML = geticon("check", 20);
 
-
-            const nId = result.id;
-
-            addToTop(nId, title, content, createTime) ;
+            await serverGetNotes();
+            renderNotes();
 
             // re-enable button after two seconds.
             setTimeout(() => {
@@ -901,10 +914,11 @@ const editMode = (i) => {
 
     const title = note.title ;
     const content = note.content ;
+    const isPinned = note.pin;
 
     EDITARRAY = {id: i , title: title.trim() , content: content.trim()}  ;
     const lister = (ix,x) => {
-        const titlebox = `<input type="text" class="bold editTitle" id="titE${ix}" value="${title.trim()}" />` ;
+        const titlebox = `<input type="text" placeholder="Title..." class="bold editTitle" id="titE${ix}" value="${title.trim()}" />` ;
         const contentbox = `<div class="contentCon"> <textarea id="contE${ix}" class="editContent ${x?'fillspace':''}">${content.trim()}</textarea></div> ` ;
         const donebox = `<span id="editMode${ix}" class="float floatedit"  style= "opacity: 1;"><span class="floatbuttonDark" id="dn${ix}">${geticon("check", 20 )}</span></span>`;
         const insideList = `<div class='titleCon'>${titlebox}${donebox}</div>${contentbox}`;
@@ -913,7 +927,7 @@ const editMode = (i) => {
     }
     
 
-    const editbox = `<div class="list listedit list-boundary" id="list${id}">${lister(id)}</div>`;
+    const editbox = `<div class="list listedit list-boundary${isPinned?" pinned":""}" id="list${id}">${lister(id)}</div>`;
     if (xid) {
         const expandedList = document.querySelector(`#expandedList${id}`);
        
@@ -941,17 +955,19 @@ const serverEdit = async (i) => {
     const title = titleEl.value;
     const content = contentEl.value;
     const createTime = new Date().toISOString() ;
+    const isPinned = checkPinStatus(id);
 
     const editObj = {id: i,  title: title.trim() , content: content.trim()} ;
 
     //check for changes
     const changes = checkChanges(editObj) ;
+    const noteDetails = {title, content, createTime};
 
     // If no changes are made return
     if (!changes) {
         
-        if (xid) {saveEdit(i, title, content, createTime);}
-        saveEdit(id, title, content, createTime);
+        if (xid) {saveEdit({id:i, ...noteDetails, pin: isPinned});}
+        saveEdit({id, ...noteDetails, pin: isPinned});
         EDITARRAY = null;
         return
     }
@@ -1000,8 +1016,8 @@ const serverEdit = async (i) => {
             ACCESSTOKEN = result.accessToken;
             EDITARRAY = null;
             alertObj("Note edited successfully");
-            if (xid) {saveEdit(i, title, content, createTime);}
-            saveEdit(id, title, content, createTime);
+            if (xid) {saveEdit({id: i, ...noteDetails, pin: isPinned});}
+            saveEdit({id, ...noteDetails, pin: isPinned});
         }
 
     } catch (err) { 
