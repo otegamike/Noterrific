@@ -3,6 +3,7 @@ import { geticon, icons } from "/js/svg.js";
 import { toggleExpand, collapseNote } from "/js/expandCard.js";
 import {animateElement} from "/js/animationHandler.js";
 import truncateString from "/js/truncateString.js";
+import { addScrollIndicator } from "/js/expandCard.js";
 
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 
@@ -369,7 +370,7 @@ const liElement = (note, animate , type) => {
     const listClass = animate?'offset-right':'';
 
     
-    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass} ${pinned?'pinned':''} " data-type=${type} id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
+    const list = `<li class="${liClass}" id="nt${liId}"><div class="list list-boundary ${listClass} ${pinned?'pinned':''}" ${type?`data-type="${type}"`:''} id="list${liId}"> ${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}</div></li>`;
 
     return list ;
 }  
@@ -405,6 +406,7 @@ const saveEdit = (note) => {
 
     const {id: i, title, content, createTime, pin} = note;
 
+    const formattedContent = formatNoteContent(content);
 
     //check if expanded
     const xid = (i.charAt(0)==="X")?true:false;
@@ -419,13 +421,17 @@ const saveEdit = (note) => {
     const datespan = `<span class="date">${loaddate(createTime)}</span>`
     
     const titleContainer = `<div class='titleCon'>${titlespan} <span id="float${i}" class="float">${actionBtns(i,pin)}</span></div>`;
-    const contentSpan= `<span class="content" id="cont${i}" >${content.replaceAll("\n","<br/>")}</span>`;
+    const contentSpan= `<span class="content" id="cont${i}" >${xid?content.replaceAll("\n","<br/>"):formattedContent}</span>`;
 
     
     const editedNote = `${titleContainer}<div class="contentCon">${contentSpan}</div>${datespan}`;
     
     listEl.innerHTML = editedNote ;
 
+    if (xid) {
+        const contentCon = listEl.querySelector('.contentCon');
+        addScrollIndicator(contentCon, id);
+    }
 }
 
 const addToTop = (id, title, content, createTime) => {
@@ -492,6 +498,7 @@ const renderNotes = (loader = false) => {
     const pinnedNotes = USERNOTES.filter(({pin}) => pin);
     const unpinnedNotes = USERNOTES.filter(({pin}) => !pin);
 
+    PINNEDCOUNT = pinnedNotes.length;
     const pinnedNoteList = pinnedNotes.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: note.createTime, pinned: note.pin})).join("");
     const unpinnedNoteList = unpinnedNotes.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: note.createTime, pinned: note.pin})).join("");
     
@@ -510,6 +517,7 @@ let ACCESSTOKEN ;
 let EDITARRAY ;
 let USER ;
 let USERNOTES;
+let PINNEDCOUNT;
 
 function filterNotes(id) {
     const note = USERNOTES.find(note => String(note.id) === String(id));
@@ -599,7 +607,7 @@ async function getNotes() {
             // save notes to memory
             USERNOTES = defaultnote;
 
-            const noteContainer = defaultnote.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: 0}, false , "default")).join("");
+            const noteContainer = defaultnote.map(note => liElement ({liId: note.id, liTitle: note.title, liContent: note.content, liCreateTime: 0}, false ,"default")).join("");
             const noteUl = `<ul id="noteUl" class="offset-right">${noteContainer}</ul>`;
             noteEl.innerHTML=noteUl;
 
@@ -865,7 +873,7 @@ const serverPinNote = async (i, pin=true) => {
         } else {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;
-            alertObj("Note pinned successfully");
+            alertObj(`Note ${pin?"pinned":"unpinned"} successfully`);
         }
         
 
@@ -1135,8 +1143,25 @@ document.addEventListener("click", async function (e) {
     // Pin button
     if (e.target.closest(".floatbutton") && e.target.closest(".floatbutton").id.startsWith("pin")) {
         const id = e.target.closest(".floatbutton").id.replace("pin", "");
+        const listElement = e.target.closest('.list');
+
+        if (listElement && listElement.getAttribute('data-type') === 'default') {
+            errObbj("You can't pin Default notes.");
+            return;
+        }
 
         const isPinned = checkPinStatus(id);
+        if (!isPinned && PINNEDCOUNT >= 4) {
+            errObbj("You can only pin 4 notes at a time");
+            return;
+        }
+        
+        if (isPinned) {
+            PINNEDCOUNT--;
+        } else {
+            PINNEDCOUNT++;
+        }
+
         const pin = isPinned? false : true;
 
         await serverPinNote(id, pin);

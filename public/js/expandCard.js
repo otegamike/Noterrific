@@ -5,7 +5,7 @@ import { geticon } from "./svg.js";
 
 const scrollListeners = new Map(); // Store listeners for cleanup
 
-
+ 
 export async function toggleExpand(i, textContent) {
     const listEl = document.getElementById(`list${i}`);
     if (!listEl) return;
@@ -113,42 +113,7 @@ export async function toggleExpand(i, textContent) {
 
     // Check for overflow and add scroll indicator
     const contentCon = clone.querySelector('.contentCon');
-    if (contentCon && isOverflowing(contentCon).y) {
-        const indicator = document.createElement('div');
-        indicator.className = 'scroll-indicator';
-        indicator.id = `scroll-indicator${i}`;
-        indicator.innerHTML = geticon('chevron-down', 30, '#96c703');
-        indicator.style.pointerEvents = 'auto'; // Enable clicking
-        clone.appendChild(indicator);
-
-        const onScroll = () => {
-            const isAtBottom = contentCon.scrollHeight - contentCon.scrollTop <= contentCon.clientHeight + 1;
-            if (isAtBottom) {
-                indicator.classList.add('hidden');
-            } else {
-                indicator.classList.remove('hidden');
-            }
-        };
-
-        const onClickIndicator = (ev) => {
-            ev.stopPropagation();
-            contentCon.scrollTo({
-                top: contentCon.scrollHeight,
-                behavior: 'smooth'
-            });
-        };
-
-        contentCon.addEventListener('scroll', onScroll);
-        indicator.addEventListener('click', onClickIndicator);
-        scrollListeners.set(`expandedList${i}`, { 
-            element: contentCon, 
-            listener: onScroll,
-            indicator,
-            indicatorListener: onClickIndicator
-        });
-    }
-
-
+    addScrollIndicator(contentCon, i);
 
 }
 
@@ -214,3 +179,41 @@ export async function collapseNote(id) {
     return true;
 }
 
+
+export const addScrollIndicator = (contentCon, i) => {
+    if (contentCon && isOverflowing(contentCon).y) {
+        const indicator = document.createElement('div');
+        indicator.className = 'scroll-indicator';
+        indicator.id = `scroll-indicator${i}`;
+        indicator.innerHTML = geticon('chevron-down', 30, '#96c703');
+        indicator.style.pointerEvents = 'auto'; // Enable clicking
+        const parent = contentCon.parentElement;
+        parent.appendChild(indicator);
+
+        const onScroll = () => {
+            const isAtBottom = contentCon.scrollHeight - contentCon.scrollTop <= contentCon.clientHeight + 1;
+            if (isAtBottom) {
+                indicator.classList.add('hidden');
+            } else {
+                indicator.classList.remove('hidden');
+            }
+        };
+
+        const onClickIndicator = (ev) => {
+            ev.stopPropagation();
+            contentCon.scrollTo({
+                top: contentCon.scrollHeight,
+                behavior: 'smooth'
+            });
+        };
+
+        contentCon.addEventListener('scroll', onScroll);
+        indicator.addEventListener('click', onClickIndicator);
+        scrollListeners.set(`expandedList${i}`, { 
+            element: contentCon, 
+            listener: onScroll,
+            indicator,
+            indicatorListener: onClickIndicator
+        });
+    }
+}

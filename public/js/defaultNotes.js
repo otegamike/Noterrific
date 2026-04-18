@@ -17,7 +17,7 @@ const defaultNote = (user) =>  {
             userId: null,
             id: 3,
             title: 'Tips & Tricks',
-            content: `- Hover or long press on a note to see extra options (like edit or delete). \n- Notes save instantly. \n- You can pin important notes or search through your list anytime`
+            content: `- Hover or long press on a note to see extra options (like edit or delete). \n- Notes save instantly. \n- You can pin up to 4 important notes to the top or search through your list anytime`
         },
         {
             userId: null,
