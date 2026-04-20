@@ -654,6 +654,8 @@ ul {
 }
 
 li {
+    --margin-bottom: 15px;
+
     display: grid;
     grid-template-rows: subgrid;
     grid-row: span 3;
@@ -1390,6 +1392,22 @@ a {
     }
 }
 
+
+.undo {
+    background-color: var(--semi-light);
+    margin: 5px;
+    border: 1px solid var(--colorwhite);
+    border-radius: 15px;
+    padding: 2px 5px;
+    color: var(--colorblack);
+    font-weight: bold;
+    cursor: pointer;
+
+    &:hover {
+        background-color: var(--colordarker);
+    }
+}
+
 /*----------------PEN ANIMATION-------------------- */
 .frame {
         width: var(--logosize);
@@ -1615,6 +1633,8 @@ a {
     }
 
     li {
+        --margin-bottom: 0px;
+
         margin-bottom: 0px;
     }
 }

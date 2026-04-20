@@ -189,6 +189,28 @@ const errObbj = (errText) => {
 
 }
 
+const waitForClick = (buttonId, timeoutMs) => {
+  return new Promise((resolve, reject) => {
+    const button = document.getElementById(buttonId);
+    
+    // 1. Define the handler separately so we can remove it manually if needed
+    const handleClick = () => {
+      clearTimeout(timer); // Cancel the timeout if they clicked in time
+      resolve('Button was clicked!');
+    };
+
+    // 2. Set the timeout
+    const timer = setTimeout(() => {
+      // Cleanup: Remove the listener so it doesn't fire after the timeout
+      button.removeEventListener('click', handleClick);
+      reject(new Error(`User did not click ${buttonId} within ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    // 3. Attach the listener
+    button.addEventListener('click', handleClick, { once: true });
+  });
+};
+
 const alertObj = (alertText, type="alert-success") => {
     const alertEl = document.getElementById("alrtCon");
     if (!alertEl) return;
@@ -202,6 +224,29 @@ const alertObj = (alertText, type="alert-success") => {
 
     animateblock(`alrt${i}`, "fade-in", "remove", 4000, "delete");
 
+}
+
+const undoDelAlert = async (noteIndex, waitTime = 5000) => {
+
+
+    const alertEl = document.getElementById("alrtCon");
+    if (!alertEl) return;
+    const i = alertEl.children.length + 1;
+
+    const alrt = `<div class="alrt alert-warning" id="alrt${i}">Note deleted <span class="undo" id="undo${noteIndex}">Undo</span></div>`;
+    
+    alertEl.insertAdjacentHTML("beforeend", alrt);
+
+    animateblock(`alrt${i}`,"fade-in","add",10);
+
+    animateblock(`alrt${i}`, "fade-in", "remove", waitTime, "delete");
+
+    try {
+        await waitForClick(`undo${noteIndex}`, waitTime+1000);
+        return true;
+    } catch (err) {
+        return false;
+    }
 }
 
 async function copyToClipboard(text) {
@@ -271,12 +316,35 @@ const delAnimation = (index) => {
     liEl.style.gridTemplateRows = "none";
     liEl.style.height = height + "px"; 
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
        liEl.style.height = 0.01 + "px";
        liEl.style.marginBottom = 0 +"px";
        listEl.style.transform = "translateX(20%) translateY(-16px)"
        listEl.style.opacity = 0;
-    }, 10)
+    })
+
+    return height;
+}
+
+const undoDelAnimation = (index, height) => {
+    const liEl = document.getElementById(`nt${index}`);
+    const listEl = document.getElementById(`list${index}`);
+
+    if (!liEl || !listEl) {
+        errObbj("encountered an error while trying to delete. Please try again later");
+        return 
+    }
+
+    requestAnimationFrame(() => {
+       liEl.style.height = `${height}px`;
+       liEl.style.marginBottom ='var(--margin-bottom)';
+       listEl.style.transform = "translateX(0%) translateY(0px)"
+       listEl.style.opacity = 1;
+    })
+
+    liEl.style.gridTemplateRows = "subgrid";
+    liEl.style.height = "auto"; 
+    
 }
 
 const preventClick = (toggle, elementId, btn) => {
@@ -782,13 +850,13 @@ const saveNote = async () => {
 const serverDel = async (i) => {
 
     const id = i;
-    // const spinner = `<svg class="spinner" width="25px" height="25px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg>`;
-    const delId = `del${i}`;
-    const delEl = document.getElementById(delId);
-    delEl.innerHTML = geticon("spinner", 20 , '#96c703') ;
+    // // const spinner = `<svg class="spinner" width="25px" height="25px" fill="#96c703"  viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="M10 1v2a7 7 0 1 1-7 7H1a9 9 0 1 0 9-9"/></svg>`;
+    // const delId = `del${i}`;
+    // const delEl = document.getElementById(delId);
+    // delEl.innerHTML = geticon("spinner", 20 , '#96c703') ;
 
-    // disable button
-    disableBtn("on", delId);
+    // // disable button
+    // disableBtn("on", delId);
     const requestTimeout = reqTimeout() ;
 
     try {  
@@ -802,10 +870,10 @@ const serverDel = async (i) => {
         requestTimeout.clear();
 
         if (res.status===500) {
-            const errTxt = "Could not delete note. Please try again later";
+            const errTxt = "Error syncing your data some changes may not be saved. Please check your internet connection";
             errObbj(errTxt);
-            // enable button
-            disableBtn("off", delId);
+            // // enable button
+            // disableBtn("off", delId);
             throw new Error( "Network error");
             
         } else if (res.status===403) {
@@ -819,16 +887,16 @@ const serverDel = async (i) => {
         } else {
             const result = await res.json();
             ACCESSTOKEN = result.accessToken;
-            alertObj("Note deleted successfully");
-            delNote(i);
+            // alertObj("Note deleted successfully");
+            // delNote(i);
 
         }
         
 
     } catch (err) {
         if (err.name === 'AbortError') {
-            errObbj('Request timed out. Please try again.');
-            disableBtn("off", delId);
+            errObbj('Error syncing your data some changes may not be saved. Please check your internet connection');
+            // disableBtn("off", delId);
         }
         console.error(err);
 
@@ -896,9 +964,6 @@ const delNote = (index) => {
         errObbj("encountered an error while trying to delete. Please try again later");
         return
     }  
-
-    //Intiate delete animation
-     delAnimation(index);
 
     // Remove element after animation
     setTimeout(() => {
@@ -1095,12 +1160,24 @@ document.addEventListener("click", async function (e) {
             await collapseNote(`expandedList${id}`);
         }
 
-        // Check if default note
-        if (listElement && listElement.getAttribute('data-type') === 'default') {
-            delNote(id);
+        const containerHeight = delAnimation(id);
+        const undo = await undoDelAlert(id);
+        if (undo) {
+            undoDelAnimation(id, containerHeight);
         } else {
-            serverDel(id);
+
+            // Check if default note
+            if (listElement && listElement.getAttribute('data-type') === 'default') {
+                delNote(id);
+            } else {
+                await serverDel(id);
+                delNote(id);
+                await serverGetNotes();
+            }
+           
         }
+
+        
         
     }
 
