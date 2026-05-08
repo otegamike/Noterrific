@@ -800,6 +800,41 @@ router.post("/remote-post/note", async (req, res) => {
 }); 
 
 
+router.delete("/remote-post/key/delete", async (req, res) => {
+    
+    const accessToken = req.body.ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+    
+    try {
+
+        const { userId } = await AuthenticateUser(accessToken,refreshToken) ;
+
+        const {db} = await connectToDatabase() ;
+        const users = db.collection("Users");
+        const oid = ObjectId.createFromHexString(userId);
+        const update = await users.updateOne(
+            { _id: oid },
+            { $set: { apiKey: null, apiKeyStatus: "inactive", apiKeyClient: null } }
+        );
+        if (update.acknowledged) {
+            res.status(200).json({accessToken, message: "API key deleted successfully"});
+        } else {
+            res.status(404);
+            console.log("Failed to delete API key") ;
+        }
+
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(403).json({message: err.message});
+        return;
+    }
+
+}); 
+
+
+
+
 router.post("/logout", async (req, res) => { 
 
     let accessToken = req.body.ACCESSTOKEN;
