@@ -239,6 +239,16 @@ const AuthenticateUser = async (accessToken, refreshToken) => {
     return { newAccessToken, userId, username};
 }
 
+const getAccessTokenFromReq = (req) => {
+    return (
+        req.body?.ACCESSTOKEN ||
+        req.headers["x-access-token"] ||
+        (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")
+            ? req.headers.authorization.slice(7)
+            : null)
+    );
+};
+
 
 async function connectToDatabase() {
     if (cachedClient && cachedDb ) {
@@ -697,9 +707,9 @@ router.post("/newNote" , async (req , res) => {
 }); 
 
 
-router.get("/remote-post/key/new", async (req, res) => {
+router.post("/remote-post/key/new", async (req, res) => {
     
-    const accessToken = req.body.ACCESSTOKEN;
+    const accessToken = getAccessTokenFromReq(req);
     const refreshToken = req.cookies.refreshToken;
     
     try {
@@ -738,6 +748,31 @@ router.get("/remote-post/key/new", async (req, res) => {
     }
 
 }); 
+
+router.get("/remote-post/key/status", async (req, res) => {
+    const accessToken = getAccessTokenFromReq(req);
+    const refreshToken = req.cookies.refreshToken;
+
+    try {
+        const { userId, accessToken: nextAccessToken } = await AuthenticateUser(accessToken, refreshToken);
+        const { db } = await connectToDatabase();
+        const users = db.collection("Users");
+        const oid = ObjectId.createFromHexString(userId);
+        const found = await users.findOne({ _id: oid }, { projection: { apiKeyStatus: 1, apiKeyClient: 1 } });
+
+        const apiKeyStatus = found?.apiKeyStatus || "inactive";
+        const apiKeyClient = found?.apiKeyClient || null;
+
+        res.status(200).json({
+            accessToken: nextAccessToken,
+            apiKeyStatus,
+            apiKeyClient
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(403).json({ message: err.message });
+    }
+});
 
 
 router.post("/remote-post/note", async (req, res) => {
@@ -802,7 +837,7 @@ router.post("/remote-post/note", async (req, res) => {
 
 router.delete("/remote-post/key/delete", async (req, res) => {
     
-    const accessToken = req.body.ACCESSTOKEN;
+    const accessToken = getAccessTokenFromReq(req);
     const refreshToken = req.cookies.refreshToken;
     
     try {
@@ -831,6 +866,55 @@ router.delete("/remote-post/key/delete", async (req, res) => {
     }
 
 }); 
+
+router.post("/account/password", async (req, res) => {
+    const accessToken = getAccessTokenFromReq(req);
+    const refreshToken = req.cookies.refreshToken;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        res.status(400).json({ message: "Current password and new password are required." });
+        return;
+    }
+
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+        res.status(400).json({ message: "Invalid data type. Password values must be strings." });
+        return;
+    }
+
+    if (newPassword.length < 8) {
+        res.status(400).json({ message: "New password must be at least 8 characters." });
+        return;
+    }
+
+    try {
+        const { userId, accessToken: nextAccessToken } = await AuthenticateUser(accessToken, refreshToken);
+        const { db } = await connectToDatabase();
+        const users = db.collection("Users");
+        const oid = ObjectId.createFromHexString(userId);
+        const user = await users.findOne({ _id: oid });
+
+        if (!user) {
+            res.status(404).json({ message: "User not found." });
+            return;
+        }
+
+        const validCurrentPassword = await bcrypt.compare(currentPassword, user.hashedpassword);
+        if (!validCurrentPassword) {
+            res.status(403).json({ message: "Current password is incorrect." });
+            return;
+        }
+
+        const salt = await bcrypt.genSalt();
+        const hashedpassword = await bcrypt.hash(newPassword, salt);
+        await users.updateOne({ _id: oid }, { $set: { hashedpassword } });
+
+        res.status(200).json({ accessToken: nextAccessToken, message: "Password updated successfully." });
+    } catch (err) {
+        console.error(err.message);
+        res.status(403).json({ message: err.message });
+    }
+});
 
 
 

@@ -19,6 +19,10 @@
     --logobackground: white;
 
 
+    --buttonmargin: 0.375rem;
+    --morebuttonsize: 1.25rem;
+    --buttonsize: 1.875rem;
+    --buttongap: 0.1875rem;
 
 }
 
@@ -47,8 +51,8 @@ body {
 }
 
 .svgTarget {
-    width: 28vw;
-    height: calc(28vw * (77.75 / 207.75));
+    width: 8.75rem;
+    height: calc(8.75rem * (77.75 / 207.75));
 }
 
 .landingPageHeader {
@@ -1014,9 +1018,9 @@ textarea:focus {
 
 .floatbutton {
     display: flex;
-    width: 30px;
-    height: 30px;
-    margin-left: 6px;
+    width: var(--buttonsize);
+    height: var(--buttonsize);
+    margin-left: var(--buttonmargin);
     box-sizing: border-box;
     border: 2px solid var(--semi-light);
     background-color: #edf9cc;
@@ -1029,14 +1033,14 @@ textarea:focus {
 }
 
 .floatbutton:not(.hidable-action-btns .floatbutton):not(.floatbutton ~ .floatbutton) {
-    margin-left: 3px;
+    margin-left: var(--buttongap);
 }
 
 .morebutton {
     display: flex;
-    width: 20px;
-    height: 30px;
-    margin-left: 6px;
+    width: var(--morebuttonsize);
+    height: var(--buttonsize);
+    margin-left: var(--buttonmargin);
     box-sizing: border-box;
     background-color: #edf9cc;
     justify-content: center;
@@ -1075,10 +1079,10 @@ textarea:focus {
 
 .floatbuttonDark {
     display: flex;
-    width: 30px;
-    height: 30px;
-    margin-left: 6px;
-    margin-right: 6px;
+    width: var(--buttonsize);
+    height: var(--buttonsize);
+    margin-left: var(--buttonmargin);
+    margin-right: var(--buttonmargin);
     box-sizing: border-box;
     border: 2px solid var(--semi-light);
     background-color: var(--semi-light);

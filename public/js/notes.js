@@ -240,7 +240,7 @@ const waitForClick = (buttonId, timeoutMs) => {
   });
 };
 
-const alertObj = (alertText, type="alert-success") => {
+export const alertObj = (alertText, type="alert-success") => {
     const alertEl = document.getElementById("alrtCon");
     if (!alertEl) return;
     const i = alertEl.children.length + 1;
