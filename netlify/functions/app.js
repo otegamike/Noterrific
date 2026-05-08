@@ -6,6 +6,7 @@ const serverless = require("serverless-http");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ObjectId } =  require("mongodb");
 const fs  = require("fs");
+const crypto = require("crypto");
 const logEvent = require("./logs/devLogs") ;
 require("dotenv").config();
 
@@ -64,6 +65,17 @@ const decodeToken = (token, type) => {
     }
 }
 
+const generateRawApiKey = () => {
+  return crypto.randomBytes(32).toString('hex'); 
+  // Returns a 64-character hex string
+};
+
+const hashApiKey = (apiKey) => {
+  return crypto
+    .createHash('sha256')
+    .update(apiKey)
+    .digest('hex');
+};
 
 const createRefreshTokenArray = (dbRefreshTokenArray, newTokenObj, oldRefreshToken) => {
     console.log("creating/updating refresh token array")
@@ -207,6 +219,24 @@ const verifyToken = async(accesstoken, refreshtoken) => {
     }
 
 
+}
+
+const AuthenticateUser = async (accessToken, refreshToken) => {
+    const validateUser = await verifyToken(accessToken,refreshToken) ;
+    let newAccessToken, userId, username;
+    if (validateUser.validated) {
+         newAccessToken = validateUser.accessToken;
+         userId = validateUser.userId;
+         username = validateUser.username;
+
+        console.log(validateUser.message);
+        return { newAccessToken, userId, username};
+    } else if (!validateUser.validated) {
+        console.log(validateUser.message);
+        throw new Error( validateUser.message);
+    }
+
+    return { newAccessToken, userId, username};
 }
 
 
@@ -665,6 +695,110 @@ router.post("/newNote" , async (req , res) => {
 
     
 }); 
+
+
+router.get("/remote-post/key/new", async (req, res) => {
+    
+    const accessToken = req.body.ACCESSTOKEN;
+    const refreshToken = req.cookies.refreshToken;
+    
+    try {
+
+        const { userId } = await AuthenticateUser(accessToken,refreshToken) ;
+        const apiKey = generateRawApiKey();
+        const hashedApiKey = hashApiKey(apiKey);
+        const apiKeyClient = apiKey.slice(0,4) + "......" + apiKey.slice(-4);
+
+        const {db} = await connectToDatabase() ;
+        const users = db.collection("Users");
+        const oid = ObjectId.createFromHexString(userId);
+        const find = await users.findOne({_id: oid});
+
+        if (find.apiKeyStatus === "active") {
+            res.status(403).json({message: "API key already exists"});
+            return;
+        }
+
+        const update = await users.updateOne(
+            { _id: oid },
+            { $set: { apiKey: hashedApiKey, apiKeyStatus: "active", apiKeyClient } }
+        );
+        if (update.acknowledged) {
+            res.status(201).json({accessToken, apiKey});
+        } else {
+            res.status(404);
+            console.log("Failed to generate API key") ;
+        }
+
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(403).json({message: err.message});
+        return;
+    }
+
+}); 
+
+
+router.post("/remote-post/note", async (req, res) => {
+    
+    const { title, note } = req.body;
+    const { apikey: apiKey, username } = req.headers;
+    const createTime = new Date().toISOString();
+
+    if (!title || !note || !apiKey || !username) {
+        console.log("---------------- missing fields ----------------")
+        console.log(`title: ${title} \n note: ${note} \n apiKey: ${apiKey} \n username: ${username}\n---------------- missing fields ----------------\n headers: ${JSON.stringify(req.headers)}`);
+        res.status(400).json({message: "Missing required fields"});
+        return;
+    }
+
+    if (typeof note !=="string" || typeof title !=="string" || typeof apiKey !=="string" || typeof username !=="string") {
+        res.status(400).json({message: "Invalid data type. Ensure all fields are strings."});
+        return;
+    }
+    
+    try {
+        
+
+        const hashedApiKey = hashApiKey(apiKey);
+
+        const {db} = await connectToDatabase() ;
+        const users = db.collection("Users");
+        const notes = db.collection("NoteCollection");
+
+        const find = await users.findOne({username, apiKey: hashedApiKey});
+
+        if (!find) {
+            res.status(403).json({message: "Invalid API key"});
+            return;
+        }
+
+        const { _id } = find;
+        const userId = _id.toString() ;
+        console.log("User ID: ", userId);
+         
+
+        const lastNote = await notes.findOne({} , {sort :{ id : -1}}) ;
+        const id = lastNote.id + 1;
+        const insertNote = await notes.insertOne({userId, id , title , content: note , createTime});
+
+        if (insertNote.acknowledged) {
+            res.status(200).json({message: "Note added successfully"});
+        } else {
+            res.status(404);
+            console.log("Failed to generate API key") ;
+        }
+
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(403).json({message: err.message});
+        return;
+    }
+
+}); 
+
 
 router.post("/logout", async (req, res) => { 
 

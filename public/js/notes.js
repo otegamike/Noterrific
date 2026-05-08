@@ -59,7 +59,35 @@ function DisplayPhoto(str, size = 100) {
   `;
 }
 
-const ShowDisplayName = (uname) => {
+const checkPage = (page) => {
+    const path = window.location.pathname;
+    if (path.endsWith(`/${page}.html`)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+const tablink = () => {
+    let href = "";
+    let text = "";
+
+    if (checkPage("notes")) {
+        href = "/settings.html";
+        text = "settings";
+    } 
+
+    else if (checkPage("settings")) {
+        href = "/notes.html";
+        text = "notes";
+    }
+
+  return `<span class="tablink" id="${text}"> <a href="${href}">${text}</a></span>`
+}
+
+
+
+export const ShowDisplayName = (uname) => {
     const name = sessionStorage.getItem("username"); 
     const username = uname? uname : name ;
     if (username) {
@@ -68,7 +96,8 @@ const ShowDisplayName = (uname) => {
         const element = ` <span class="loginn display-name" id="displayName"> <span class="uname">${usernameCapitalized}</span>
                                                                              <span class="panel">
                                                                                 <span class="tablink" id="logout"> logout</span>
-                                                                                <span class="tablink" id="reload"> reload</span>
+                                                                                ${checkPage("notes")?'<span class="tablink" id="reload"> reload</span>':''}
+                                                                                ${tablink()}
                                                                              </span>
         </span>
             <span class="profilepic" id="profilepic"> ${DisplayPhoto(username,40)}  </span>
