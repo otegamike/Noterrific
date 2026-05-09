@@ -1,4 +1,4 @@
-﻿import { alertObj } from "./notes.js"; 
+import { renderSettingsHeaderActions, showAlert } from "./sharedUi.js";
 let accessToken = sessionStorage.getItem("validate");
 
 const prefs = {
@@ -7,34 +7,10 @@ const prefs = {
   pinnedFirst: "pref_pinned_first"
 };
 
-const showAlert = (message) => {
-  const alertEl = document.getElementById("alrtCon");
-  if (!alertEl) return;
-  const el = document.createElement("div");
-  el.className = "alrt";
-  el.textContent = message;
-  alertEl.appendChild(el);
-  setTimeout(() => el.remove(), 3500);
-};
-
-const displayPhoto = (str, size = 40) => {
-  const letter = (str || "U").charAt(0).toUpperCase();
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;display:flex;justify-content:center;align-items:center;font-size:${size * 0.5}px;font-weight:700;font-family:Arial,sans-serif;background-color:#96c703;color:white;">${letter}</div>`;
-};
-
 const renderHeaderActions = () => {
   const username = sessionStorage.getItem("username");
   if (!username) return;
-  document.getElementById("actions").innerHTML = `
-    <span class="loginn display-name" id="displayName">
-      <span class="uname">${username.charAt(0).toUpperCase() + username.slice(1)}</span>
-      <span class="panel">
-        <span class="tablink" id="goNotes"><a href="/notes.html">notes</a></span>
-      </span>
-    </span>
-    <span class="profilepic" id="profilepic">${displayPhoto(username, 40)}</span>
-  `;
-
+  renderSettingsHeaderActions({ username });
   document.getElementById("accountUsername").textContent = username;
 };
 
@@ -178,14 +154,14 @@ const createApiKey = async () => {
       const reveal = document.getElementById("apiKeyReveal");
       document.getElementById("apiKeyValue").textContent = data.apiKey;
       reveal.classList.remove("hidden");
-      alertObj("API key created. Copy it now. you wont see it again!");
+      showAlert("API key created. Copy it now. you wont see it again!", "alert-success");
       loadApiKeyStatus();
       return;
     }
 
-    alertObj(data.message || "Could not create API key.", 'error');
+    showAlert(data.message || "Could not create API key.");
   } catch (_err) {
-    alertObj("Network error while creating API key.");
+    showAlert("Network error while creating API key.");
   }
 };
 
@@ -232,7 +208,12 @@ const copyApiKey = async () => {
 const init = () => {
   renderHeaderActions();
   initPreferences();
-  loadApiKeyStatus();
+
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(() => loadApiKeyStatus(), { timeout: 2000 });
+  } else {
+    requestAnimationFrame(() => setTimeout(loadApiKeyStatus, 0));
+  }
 
   document.getElementById("passwordForm").addEventListener("submit", updatePassword);
   document.getElementById("logoutBtn").addEventListener("click", logout);
@@ -242,3 +223,4 @@ const init = () => {
 };
 
 window.addEventListener("DOMContentLoaded", init);
+

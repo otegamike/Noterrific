@@ -4,6 +4,7 @@ import { toggleExpand, collapseNote } from "/js/expandCard.js";
 import {animateElement} from "/js/animationHandler.js";
 import truncateString from "/js/truncateString.js";
 import { addScrollIndicator } from "/js/expandCard.js";
+import { showAlert as pushAlert } from "/js/sharedUi.js";
 
 const donebig = `<svg height="30px" fill="#edf9cc" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g stroke-width="0"/><g stroke-linecap="round" stroke-linejoin="round"/><path d="m5 16.577 2.194-2.195 5.486 5.484L24.804 7.743 27 9.937l-14.32 14.32z"/></svg>`;
 
@@ -241,17 +242,7 @@ const waitForClick = (buttonId, timeoutMs) => {
 };
 
 export const alertObj = (alertText, type="alert-success") => {
-    const alertEl = document.getElementById("alrtCon");
-    if (!alertEl) return;
-    const i = alertEl.children.length + 1;
-
-    const alrt = `<div class="alrt ${type}" id="alrt${i}">${alertText}</div>`;
-    
-    alertEl.insertAdjacentHTML("beforeend", alrt);
-
-    animateblock(`alrt${i}`,"fade-in","add",10);
-
-    animateblock(`alrt${i}`, "fade-in", "remove", 4000, "delete");
+    pushAlert(alertText, type);
 
 }
 

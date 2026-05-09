@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="/src/favicon.png">
-    <link rel="stylesheet" href="/css/notes.css" />
+    <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/settings.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Noterrific Settings</title>
@@ -90,12 +89,12 @@
         <section class="settingsCard" id="remotePostSection">
             <h2>Remote Post</h2>
             <p>Post notes to your account from external tools using your private API key.</p>
-            <p class="metaLine">Key status: <strong id="apiKeyStatus">Checking...</strong></p>
-            <p class="metaLine" id="apiKeyMaskedWrap">Masked key: <strong id="apiKeyMasked">-</strong></p>
+            <p class="metaLine">status: <strong id="apiKeyStatus">Checking...</strong></p>
+            <p class="metaLine" id="apiKeyMaskedWrap">API key: <strong id="apiKeyMasked">-</strong></p>
 
             <div class="buttonRow">
-                <button id="createApiKeyBtn" class="settingsBtn" type="button">Create API Key</button>
-                <button id="deleteApiKeyBtn" class="settingsBtn settingsBtnDanger" type="button">Revoke API Key</button>
+                <button id="createApiKeyBtn" class="settingsBtn smallBtn" type="button">Create API Key</button>
+                <button id="deleteApiKeyBtn" class="settingsBtn settingsBtnDanger smallBtn" type="button">Revoke API Key</button>
             </div>
 
             <div id="apiKeyReveal" class="apiKeyReveal hidden">
@@ -136,6 +135,7 @@ Body:
                     <li>Add JSON body keys: <code>title</code> and <code>note</code>.</li>
                     <li>In iPhone Settings, set <strong>Back Tap</strong> to run this shortcut.</li>
                 </ol>
+                <a class="docsLink" href="/remote-post-docs.html">View full Remote Post documentation</a>
             </div>
         </section>
     </main>
